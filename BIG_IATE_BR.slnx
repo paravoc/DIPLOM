@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="BIG_IATE_BR/BIG_IATE_BR.vcxproj" />
+</Solution>
