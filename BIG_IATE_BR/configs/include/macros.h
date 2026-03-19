@@ -53,6 +53,68 @@
     } while(0)
 
 
+// Для обязательных секций в LoadConfig
+#define PARSE_REQUIRED_SECTION(section_name, parse_func, target_field) \
+    do { \
+        if (root[#section_name]) { \
+            auto parse_result = parse_func(root[#section_name]); \
+            if (!parse_result) { \
+                return std::unexpected(#section_name " error: " + parse_result.error()); \
+            } \
+            result.config.target_field = *parse_result; \
+        } else { \
+            return std::unexpected("Missing required section: '" #section_name "'"); \
+        } \
+    } while(0)
+
+// Для опциональных секций в LoadConfig
+#define PARSE_OPTIONAL_SECTION(section_name, parse_func, target_field) \
+    do { \
+        if (root[#section_name]) { \
+            auto parse_result = parse_func(root[#section_name]); \
+            if (!parse_result) { \
+                return std::unexpected(#section_name " error: " + parse_result.error()); \
+            } \
+            result.config.target_field = *parse_result; \
+        } \
+    } while(0)
+
+// Для парсинга простых скалярных полей
+#define PARSE_SCALAR_FIELD(field_name, target_field, type) \
+    do { \
+        if (root[#field_name] && root[#field_name].IsScalar()) { \
+            result.config.target_field = root[#field_name].as<type>(); \
+        } \
+    } while(0)
+
+// Для парсинга массива камер
+#define PARSE_CAMERAS() \
+    do { \
+        if (root["cameras"] && root["cameras"].IsSequence()) { \
+            for (size_t i = 0; i < root["cameras"].size(); ++i) { \
+                auto camera_result = ParseCamera(root["cameras"][i]); \
+                if (!camera_result) { \
+                    return std::unexpected("Camera " + std::to_string(i + 1) + \
+                                          " error: " + camera_result.error()); \
+                } \
+                result.config.cameras.push_back(*camera_result); \
+            } \
+            if (result.config.cameras.empty()) { \
+                return std::unexpected("At least one camera must be configured"); \
+            } \
+        } else { \
+            return std::unexpected("Missing required section: 'cameras' (must be a sequence)"); \
+        } \
+    } while(0)
+
+#define CHECK_FILE(path, msg) \
+    do { \
+        if (!std::filesystem::exists(path)) { \
+            return std::unexpected(msg); \
+        } \
+    } while(0)
+
+
 // Инициализация логгера (вызвать один раз в main)
 #define CONFIG_INIT_LOGGER() \
     do { \

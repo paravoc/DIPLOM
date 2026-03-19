@@ -649,9 +649,7 @@ namespace bigiate::config {
         LoadResult result;
 
         // 1. Проверить файл
-        if (!ConfigFileExists(config_path)) {
-            return std::unexpected("Config file not found: " + config_path);
-        }
+        CHECK_FILE(config_path, "Config file not found: " + config_path);
 
         try {
             // 2. Загрузить YAML
@@ -664,27 +662,34 @@ namespace bigiate::config {
             }
             result.config.version = *version_result;
 
-            // 4. Парсить все секции по очереди
-            // - cameras (цикл по массиву)
-            // - database
-            // - bastion
-            // - recognition
-            // - logging
-            // - security
-            // - web
+            // 4. Парсинг основных полей сервера (опционально)
+            PARSE_SCALAR_FIELD(hostname, hostname, std::string);
+            PARSE_SCALAR_FIELD(thread_pool_size, thread_pool_size, int);
+            PARSE_SCALAR_FIELD(frame_queue_size, frame_queue_size, size_t);
 
-            // 5. Валидация
+            // 5. Парсинг обязательных секций
+            PARSE_REQUIRED_SECTION(database, ParseDatabase, database);
+            PARSE_REQUIRED_SECTION(recognition, ParseRecognition, recognition);
+
+            // 6. Парсинг опциональных секций
+            PARSE_OPTIONAL_SECTION(bastion, ParseBastion, bastion);
+            PARSE_OPTIONAL_SECTION(logging, ParseLogging, logging);
+            PARSE_OPTIONAL_SECTION(security, ParseSecurity, security);
+
+            // 7. Парсинг камер (обязательная секция)
+            PARSE_CAMERAS();
+
+            // 8. Валидация
             auto validation = ValidateConfig(result.config);
             if (!validation) {
-                return std::unexpected(validation.error());
+                return std::unexpected("Validation error: " + validation.error());
             }
 
-            // 6. TODO: Загрузка secrets (потом)
+            // 9. Загрузка secrets (потом)
             result.secrets = Secrets{};
             result.success = true;
 
             return result;
-
         }
         catch (const YAML::Exception& e) {
             return std::unexpected(std::string("YAML parse error: ") + e.what());
@@ -693,7 +698,6 @@ namespace bigiate::config {
             return std::unexpected(std::string("Error: ") + e.what());
         }
     }
-
     // ====================================================
     // ШАГ 6: Отладочная печать
     // ====================================================
