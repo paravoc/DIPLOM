@@ -1,0 +1,17 @@
+# Полная конфигурация
+host: "postgres-server.local"
+port: 5433
+name: "test_face_db"
+schema: "custom_schema"
+username: "test_user"
+
+pool:
+  min_connections: 5
+  max_connections: 15
+  connection_timeout_seconds: 8
+  idle_timeout_seconds: 120
+
+vector:
+  dimension: 768
+  similarity_threshold: 0.82
+  index_type: "hnsw"

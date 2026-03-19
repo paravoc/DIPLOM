@@ -28,10 +28,10 @@
 // Для обязательных полей
 #define PARSE_REQUIRED(node, field, member, type) \
     do { \
-        if (!node[#field] || !node[#field].IsScalar()) { \
-            return std::unexpected("Database missing required field: '" #field "'"); \
+        if (!node[field] || !node[field].IsScalar()) { \
+            return std::unexpected("Database missing required field: '" field "'"); \
         } \
-        db.member = node[#field].as<type>(); \
+        db.member = node[field].as<type>(); \
     } while(0)
 
 // Для опциональных полей с дефолтом
