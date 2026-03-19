@@ -5,6 +5,9 @@
 #include <wx/splitter.h>     // для wxSplitterWindow
 #include <wx/stattext.h>     // для wxStaticText
 #include <wx/sizer.h>        // для wxBoxSizer
+#include <wx/msgdlg.h>       // для wxMessageBox
+
+#define _T(str) wxString::FromUTF8(str)
 
 wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
 EVT_MENU(wxID_EXIT, MainFrame::OnExit)
@@ -22,23 +25,22 @@ MainFrame::MainFrame(const wxString& title)
     // Создаём меню
     m_menuBar = new wxMenuBar();
 
-    // Меню "Файл"
+    // Меню "Файл" - убираем выход из меню
     wxMenu* fileMenu = new wxMenu();
-    fileMenu->Append(ID_Settings, "Настройки...\tCtrl+S", "Настройки системы");
-    fileMenu->AppendSeparator();
-    fileMenu->Append(wxID_EXIT, "Выход\tAlt+F4", "Выход из программы");
+    fileMenu->Append(ID_Settings, _T("Настройки...\tCtrl+S"), _T("Настройки системы"));
+    // Убрали пункт "Выход"
 
     // Меню "Справка"
     wxMenu* helpMenu = new wxMenu();
-    helpMenu->Append(wxID_ABOUT, "О программе\tF1", "Информация о программе");
+    helpMenu->Append(wxID_ABOUT, _T("О программе\tF1"), _T("Информация о программе"));
 
-    m_menuBar->Append(fileMenu, "&Файл");
-    m_menuBar->Append(helpMenu, "&Справка");
+    m_menuBar->Append(fileMenu, _T("&Файл"));
+    m_menuBar->Append(helpMenu, _T("&Справка"));
     SetMenuBar(m_menuBar);
 
     // Создаём статус-бар
     m_statusBar = CreateStatusBar(3);
-    SetStatusText("Готов к работе", 0);
+    SetStatusText(_T("Готов к работе"), 0);
 
     // Обновляем время каждую секунду
     wxTimer* timer = new wxTimer(this);
@@ -60,7 +62,7 @@ MainFrame::MainFrame(const wxString& title)
 
         // Название камеры
         wxStaticText* camTitle = new wxStaticText(camPanel, wxID_ANY,
-            wxString::Format("Камера %d", i),
+            wxString::Format(_T("Камера %d"), i),
             wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
         camTitle->SetForegroundColour(*wxWHITE);
         camTitle->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
@@ -70,7 +72,7 @@ MainFrame::MainFrame(const wxString& title)
         video->SetBackgroundColour(*wxBLACK);
 
         // Статус
-        wxStaticText* status = new wxStaticText(camPanel, wxID_ANY, "⏺ Online",
+        wxStaticText* status = new wxStaticText(camPanel, wxID_ANY, _T("⏺ Online"),
             wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
         status->SetForegroundColour(wxColour(0, 255, 0)); // Зелёный
 
@@ -88,7 +90,7 @@ MainFrame::MainFrame(const wxString& title)
     m_logPanel = new wxPanel(m_mainSplitter, wxID_ANY);
     wxBoxSizer* logSizer = new wxBoxSizer(wxVERTICAL);
 
-    wxStaticText* logTitle = new wxStaticText(m_logPanel, wxID_ANY, "ПОСЛЕДНИЕ СОБЫТИЯ");
+    wxStaticText* logTitle = new wxStaticText(m_logPanel, wxID_ANY, _T("ПОСЛЕДНИЕ СОБЫТИЯ"));
     logTitle->SetFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
 
     // Таблица событий
@@ -96,31 +98,31 @@ MainFrame::MainFrame(const wxString& title)
         wxLC_REPORT | wxLC_HRULES | wxLC_VRULES);
 
     // Добавляем колонки
-    logList->AppendColumn("Время", wxLIST_FORMAT_LEFT, 80);
-    logList->AppendColumn("Событие", wxLIST_FORMAT_LEFT, 250);
-    logList->AppendColumn("Камера", wxLIST_FORMAT_LEFT, 100);
-    logList->AppendColumn("Результат", wxLIST_FORMAT_LEFT, 100);
+    logList->AppendColumn(_T("Время"), wxLIST_FORMAT_LEFT, 80);
+    logList->AppendColumn(_T("Событие"), wxLIST_FORMAT_LEFT, 250);
+    logList->AppendColumn(_T("Камера"), wxLIST_FORMAT_LEFT, 100);
+    logList->AppendColumn(_T("Результат"), wxLIST_FORMAT_LEFT, 100);
 
     // Тестовые данные
-    long index = logList->InsertItem(0, "15:47:32");
-    logList->SetItem(index, 1, "Иванов П.");
-    logList->SetItem(index, 2, "Камера 1");
-    logList->SetItem(index, 3, "РАЗРЕШЕН");
+    long index = logList->InsertItem(0, _T("15:47:32"));
+    logList->SetItem(index, 1, _T("Иванов П."));
+    logList->SetItem(index, 2, _T("Камера 1"));
+    logList->SetItem(index, 3, _T("РАЗРЕШЕН"));
 
-    index = logList->InsertItem(1, "15:46:12");
-    logList->SetItem(index, 1, "Петров С.");
-    logList->SetItem(index, 2, "Камера 1");
-    logList->SetItem(index, 3, "ЗАПРЕЩЕН");
+    index = logList->InsertItem(1, _T("15:46:12"));
+    logList->SetItem(index, 1, _T("Петров С."));
+    logList->SetItem(index, 2, _T("Камера 1"));
+    logList->SetItem(index, 3, _T("ЗАПРЕЩЕН"));
 
-    index = logList->InsertItem(2, "15:45:03");
-    logList->SetItem(index, 1, "Сидоров А.");
-    logList->SetItem(index, 2, "Камера 2");
-    logList->SetItem(index, 3, "ВЫХОД");
+    index = logList->InsertItem(2, _T("15:45:03"));
+    logList->SetItem(index, 1, _T("Сидоров А."));
+    logList->SetItem(index, 2, _T("Камера 2"));
+    logList->SetItem(index, 3, _T("ВЫХОД"));
 
-    index = logList->InsertItem(3, "15:43:21");
-    logList->SetItem(index, 1, "СИСТЕМА");
-    logList->SetItem(index, 2, "Камера 3");
-    logList->SetItem(index, 3, "ОТКЛЮЧЕНА");
+    index = logList->InsertItem(3, _T("15:43:21"));
+    logList->SetItem(index, 1, _T("СИСТЕМА"));
+    logList->SetItem(index, 2, _T("Камера 3"));
+    logList->SetItem(index, 3, _T("ОТКЛЮЧЕНА"));
 
     logSizer->Add(logTitle, 0, wxALL, 5);
     logSizer->Add(logList, 1, wxEXPAND | wxALL, 5);
@@ -141,28 +143,41 @@ MainFrame::MainFrame(const wxString& title)
 }
 
 void MainFrame::OnExit(wxCommandEvent& event) {
-    Close(true);
+    // Пустая функция - выход не работает
+    wxMessageBox(
+        _T("Для выхода используйте системное меню администратора"),
+        _T("Доступ запрещен"),
+        wxOK | wxICON_WARNING
+    );
 }
 
 void MainFrame::OnSettings(wxCommandEvent& event) {
-    wxMessageBox("Окно настроек будет здесь", "Настройки", wxOK | wxICON_INFORMATION);
+    wxMessageBox(_T("Окно настроек будет здесь"), _T("Настройки"), wxOK | wxICON_INFORMATION);
 }
 
 void MainFrame::OnAbout(wxCommandEvent& event) {
     wxAboutDialogInfo info;
-    info.SetName("BIG IATE");
-    info.SetVersion("1.0");
-    info.SetDescription("Система контроля доступа с распознаванием лиц");
-    info.SetCopyright("(C) 2026");
+    info.SetName(_T("BIG IATE"));
+    info.SetVersion(_T("1.0"));
+    info.SetDescription(_T("Система контроля доступа с распознаванием лиц"));
+    info.SetCopyright(_T("(C) 2026"));
     wxAboutBox(info);
 }
 
 void MainFrame::OnClose(wxCloseEvent& event) {
-    if (wxMessageBox("Выйти из программы?", "Подтверждение",
-        wxYES_NO | wxICON_QUESTION) == wxYES) {
+    // Спрашиваем подтверждение
+    int answer = wxMessageBox(
+        _T("Вы действительно хотите выйти?"),
+        _T("Подтверждение"),
+        wxYES_NO | wxICON_QUESTION
+    );
+
+    if (answer == wxYES) {
+        // Разрешаем закрытие
         event.Skip();
     }
     else {
+        // Отменяем закрытие
         event.Veto();
     }
 }
