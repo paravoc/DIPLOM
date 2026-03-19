@@ -90,7 +90,8 @@ namespace bigiate::config {
     // ШАГ 3: Парсинг отдельных секций
     // ====================================================
 
-    // Парсинг одной камеры из YAML узла
+// Парсинг одной камеры из YAML узла
+// Парсинг одной камеры из YAML узла
     [[nodiscard]] std::expected<CameraConfig, std::string>
         ParseCamera(const YAML::Node& node) {
         CameraConfig camera;
@@ -99,7 +100,7 @@ namespace bigiate::config {
         if (!node["id"] || !node["id"].IsScalar()) {
             return std::unexpected("Camera missing required field: 'id'");
         }
-        camera.id = node["id"].as<int>();  // id это int
+        camera.id = node["id"].as<int>();
 
         // 2. Прочитать name (обязательное)
         if (!node["name"] || !node["name"].IsScalar()) {
@@ -108,40 +109,30 @@ namespace bigiate::config {
         camera.name = node["name"].as<std::string>();
 
         // 3. Прочитать enabled (опционально, дефолт true)
-        if (node["enabled"] && node["enabled"].IsScalar()) {
-            camera.enabled = node["enabled"].as<bool>();
-        }
-        // иначе оставляем true (уже установлено в структуре)
+        PARSE_OPTIONAL(camera, node, enabled, enabled, bool, true);  // убрали кавычки
 
         // 4. Прочитать connection (опционально, но если есть - парсим)
         if (node["connection"] && node["connection"].IsMap()) {
             const auto& conn_node = node["connection"];
 
             // protocol (опционально)
-            if (conn_node["protocol"] && conn_node["protocol"].IsScalar()) {
-                camera.connection.protocol = conn_node["protocol"].as<std::string>();
-            }
+            PARSE_OPTIONAL(camera.connection, conn_node, protocol, protocol, std::string, "rtsp");  // убрали кавычки
 
             // host (обязательное для network камер)
             if (conn_node["host"] && conn_node["host"].IsScalar()) {
                 camera.connection.host = conn_node["host"].as<std::string>();
             }
             else if (camera.connection.protocol != "usb") {
-                // Если не USB, то host обязателен
                 return std::unexpected("Camera " + std::to_string(camera.id) +
                     ": 'host' required for protocol '" +
                     camera.connection.protocol + "'");
             }
 
             // port (опционально)
-            if (conn_node["port"] && conn_node["port"].IsScalar()) {
-                camera.connection.port = conn_node["port"].as<int>();
-            }
+            PARSE_OPTIONAL(camera.connection, conn_node, port, port, int, 554);  // убрали кавычки
 
             // path (опционально)
-            if (conn_node["path"] && conn_node["path"].IsScalar()) {
-                camera.connection.path = conn_node["path"].as<std::string>();
-            }
+            PARSE_OPTIONAL(camera.connection, conn_node, path, path, std::string, "/");  // убрали кавычки
 
             // device (опционально, только для USB)
             if (conn_node["device"] && conn_node["device"].IsScalar()) {
@@ -153,30 +144,14 @@ namespace bigiate::config {
         if (node["capture"] && node["capture"].IsMap()) {
             const auto& cap_node = node["capture"];
 
-            // fps (опционально)
-            if (cap_node["fps"] && cap_node["fps"].IsScalar()) {
-                camera.capture.fps = cap_node["fps"].as<int>();
-            }
-
-            // width (опционально)
-            if (cap_node["width"] && cap_node["width"].IsScalar()) {
-                camera.capture.width = cap_node["width"].as<int>();
-            }
-
-            // height (опционально)
-            if (cap_node["height"] && cap_node["height"].IsScalar()) {
-                camera.capture.height = cap_node["height"].as<int>();
-            }
-
-            // rotation (опционально)
-            if (cap_node["rotation"] && cap_node["rotation"].IsScalar()) {
-                camera.capture.rotation = cap_node["rotation"].as<int>();
-            }
+            PARSE_OPTIONAL(camera.capture, cap_node, fps, fps, int, 15);        // убрали кавычки
+            PARSE_OPTIONAL(camera.capture, cap_node, width, width, int, 1280);  // убрали кавычки
+            PARSE_OPTIONAL(camera.capture, cap_node, height, height, int, 720); // убрали кавычки
+            PARSE_OPTIONAL(camera.capture, cap_node, rotation, rotation, int, 0); // убрали кавычки
         }
 
         return camera;
     }
-
     // Парсинг DatabaseConfig для PostgreSQL
     [[nodiscard]] std::expected<DatabaseConfig, std::string>
         ParseDatabase(const YAML::Node& node) {
@@ -190,28 +165,28 @@ namespace bigiate::config {
         PARSE_REQUIRED(node, "username", username, std::string);
 
         // Опциональные поля с дефолтами
-        PARSE_OPTIONAL(node, "host", host, std::string, "localhost");
-        PARSE_OPTIONAL(node, "port", port, int, 5432);
-        PARSE_OPTIONAL(node, "name", name, std::string, "face_db");
-        PARSE_OPTIONAL(node, "schema", schema, std::string, "public");
+        PARSE_OPTIONAL(db, node, "host", host, std::string, "localhost");
+        PARSE_OPTIONAL(db, node, "port", port, int, 5432);
+        PARSE_OPTIONAL(db, node, "name", name, std::string, "face_db");
+        PARSE_OPTIONAL(db, node, "schema", schema, std::string, "public");
 
         // Парсинг pool (опционально)
         if (node["pool"] && node["pool"].IsMap()) {
             const auto& pool_node = node["pool"];
 
-            PARSE_OPTIONAL(pool_node, "min_connections", pool.min_connections, int, 2);
-            PARSE_OPTIONAL(pool_node, "max_connections", pool.max_connections, int, 10);
-            PARSE_OPTIONAL(pool_node, "connection_timeout_seconds", pool.connection_timeout_seconds, int, 5);
-            PARSE_OPTIONAL(pool_node, "idle_timeout_seconds", pool.idle_timeout_seconds, int, 60);
+            PARSE_OPTIONAL(db.pool, pool_node, "min_connections", min_connections, int, 2);
+            PARSE_OPTIONAL(db.pool, pool_node, "max_connections", max_connections, int, 10);
+            PARSE_OPTIONAL(db.pool, pool_node, "connection_timeout_seconds", connection_timeout_seconds, int, 5);
+            PARSE_OPTIONAL(db.pool, pool_node, "idle_timeout_seconds", idle_timeout_seconds, int, 60);
         }
 
         // Парсинг vector (опционально)
         if (node["vector"] && node["vector"].IsMap()) {
             const auto& vector_node = node["vector"];
 
-            PARSE_OPTIONAL(vector_node, "dimension", vector.dimension, int, 512);
-            PARSE_OPTIONAL(vector_node, "similarity_threshold", vector.similarity_threshold, double, 0.75);
-            PARSE_OPTIONAL(vector_node, "index_type", vector.index_type, std::string, "ivfflat");
+            PARSE_OPTIONAL(db.vector, vector_node, "dimension", dimension, int, 512);
+            PARSE_OPTIONAL(db.vector, vector_node, "similarity_threshold", similarity_threshold, double, 0.75);
+            PARSE_OPTIONAL(db.vector, vector_node, "index_type", index_type, std::string, "ivfflat");
         }
 
         return db;
@@ -221,7 +196,40 @@ namespace bigiate::config {
     [[nodiscard]] std::expected<BastionConfig, std::string>
         ParseBastion(const YAML::Node& node) {
         BastionConfig bastion;
-        // Заполнить все поля
+
+        if (!node.IsMap()) {
+            return std::unexpected("Bastion configuration must be a YAML map");
+        }
+
+        // Опциональные поля с дефолтами
+        PARSE_OPTIONAL(bastion, node, "enabled", enabled, bool, true);
+        PARSE_OPTIONAL(bastion, node, "protocol", protocol, std::string, "tcp");
+        PARSE_OPTIONAL(bastion, node, "host", host, std::string, "192.168.1.200");
+        PARSE_OPTIONAL(bastion, node, "port", port, int, 9000);
+
+        // username (опционально, т.к. std::optional)
+        if (node["username"] && node["username"].IsScalar()) {
+            bastion.username = node["username"].as<std::string>();
+        }
+
+        // Парсинг timeout (опционально)
+        if (node["timeout"] && node["timeout"].IsMap()) {
+            const auto& timeout_node = node["timeout"];
+
+            PARSE_OPTIONAL(bastion.timeout, timeout_node, "connect_seconds", connect_seconds, int, 3);
+            PARSE_OPTIONAL(bastion.timeout, timeout_node, "send_seconds", send_seconds, int, 2);
+            PARSE_OPTIONAL(bastion.timeout, timeout_node, "receive_seconds", receive_seconds, int, 3);
+        }
+
+        // Парсинг retry (опционально)
+        if (node["retry"] && node["retry"].IsMap()) {
+            const auto& retry_node = node["retry"];
+
+            PARSE_OPTIONAL(bastion.retry, retry_node, "max_attempts", max_attempts, int, 3);
+            PARSE_OPTIONAL(bastion.retry, retry_node, "delay_ms", delay_ms, int, 100);
+            PARSE_OPTIONAL(bastion.retry, retry_node, "backoff_multiplier", backoff_multiplier, int, 2);
+        }
+
         return bastion;
     }
 

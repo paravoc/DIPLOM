@@ -35,12 +35,12 @@
     } while(0)
 
 // Для опциональных полей с дефолтом
-#define PARSE_OPTIONAL(node, field, member, type, default_value) \
+#define PARSE_OPTIONAL(obj, node, field, member, type, default_value) \
     do { \
         if (node[#field] && node[#field].IsScalar()) { \
-            db.member = node[#field].as<type>(); \
+            obj.member = node[#field].as<type>(); \
         } else { \
-            db.member = default_value; \
+            obj.member = default_value; \
         } \
     } while(0)
 
