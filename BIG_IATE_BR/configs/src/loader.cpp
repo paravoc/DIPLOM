@@ -421,7 +421,41 @@ namespace bigiate::config {
     [[nodiscard]] std::expected<SecurityConfig, std::string>
         ParseSecurity(const YAML::Node& node) {
         SecurityConfig security;
-        // Заполнить все поля
+
+        if (!node.IsMap()) {
+            return std::unexpected("Security configuration must be a YAML map");
+        }
+
+        // Основные поля
+        PARSE_OPTIONAL(security, node, encrypt_secrets, encrypt_secrets, bool, true);
+        PARSE_OPTIONAL(security, node, secrets_file, secrets_file, std::string, "secrets.yaml.enc");
+        PARSE_OPTIONAL(security, node, config_file_mode, config_file_mode, int, 0600);
+        PARSE_OPTIONAL(security, node, log_file_mode, log_file_mode, int, 0640);
+        PARSE_OPTIONAL(security, node, first_run, first_run, bool, false);
+
+        // Парсинг allowed_networks (массив строк)
+        if (node["allowed_networks"] && node["allowed_networks"].IsSequence()) {
+            for (const auto& net_node : node["allowed_networks"]) {
+                if (!net_node.IsScalar()) {
+                    return std::unexpected("allowed_networks must contain only strings");
+                }
+                security.allowed_networks.push_back(net_node.as<std::string>());
+            }
+        }
+        // Если массив не указан, добавляем дефолтные сети?
+        // По умолчанию оставляем пустым - значит разрешены все
+
+        // Парсинг encryption (опционально)
+        if (node["encryption"] && node["encryption"].IsMap()) {
+            const auto& enc_node = node["encryption"];
+
+            PARSE_OPTIONAL(security.encryption, enc_node, algorithm, algorithm, std::string, "AES-256-GCM");
+            PARSE_OPTIONAL(security.encryption, enc_node, key_derivation, key_derivation, std::string, "PBKDF2");
+            PARSE_OPTIONAL(security.encryption, enc_node, iterations, iterations, int, 100000);
+            PARSE_OPTIONAL(security.encryption, enc_node, salt_length, salt_length, int, 32);
+            PARSE_OPTIONAL(security.encryption, enc_node, prompt_at_startup, prompt_at_startup, bool, true);
+        }
+
         return security;
     }
 

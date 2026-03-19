@@ -7,6 +7,35 @@
 // Создаём алиас для удобства
 namespace config = bigiate::config;
 
+void PrintSecurityConfig(const config::SecurityConfig& security) {
+    std::cout << "\n=== Security Configuration ===\n";
+    std::cout << "Encrypt secrets: " << (security.encrypt_secrets ? "true" : "false") << "\n";
+    std::cout << "Secrets file: " << security.secrets_file << "\n";
+
+    // Выводим в восьмеричном формате
+    std::cout << "Config file mode: " << std::oct << "0" << security.config_file_mode << std::dec << "\n";
+    std::cout << "Log file mode: " << std::oct << "0" << security.log_file_mode << std::dec << "\n";
+
+    std::cout << "\n--- Allowed Networks ---\n";
+    if (security.allowed_networks.empty()) {
+        std::cout << "All networks allowed\n";
+    }
+    else {
+        for (const auto& net : security.allowed_networks) {
+            std::cout << "  - " << net << "\n";
+        }
+    }
+
+    std::cout << "\n--- Encryption Settings ---\n";
+    std::cout << "Algorithm: " << security.encryption.algorithm << "\n";
+    std::cout << "Key derivation: " << security.encryption.key_derivation << "\n";
+    std::cout << "Iterations: " << security.encryption.iterations << "\n";
+    std::cout << "Salt length: " << security.encryption.salt_length << " bytes\n";
+    std::cout << "Prompt at startup: " << (security.encryption.prompt_at_startup ? "true" : "false") << "\n";
+
+    std::cout << "\nFirst run: " << (security.first_run ? "true" : "false") << "\n";
+}
+
 void PrintLoggingConfig(const config::LoggingConfig& logging) {
     std::cout << "\n=== Logging Configuration ===\n";
     std::cout << "Level: " << logging.level << "\n";
@@ -199,6 +228,23 @@ int main(int argc, char* argv[]) {
         }
         else {
             std::cout << "ℹ️ No bastion configuration found\n";
+        }
+
+        // Парсинг безопасности
+        if (root["security"]) {
+            std::cout << "\n🔐 Parsing security configuration...\n";
+            auto security_result = config::ParseSecurity(root["security"]);
+
+            if (security_result.has_value()) {
+                std::cout << "✅ Security config parsed successfully!\n";
+                PrintSecurityConfig(security_result.value());
+            }
+            else {
+                std::cout << "❌ Failed to parse security config: " << security_result.error() << "\n";
+            }
+        }
+        else {
+            std::cout << "ℹ️ No security configuration found\n";
         }
 
         // НОВОЕ: Парсинг распознавания
