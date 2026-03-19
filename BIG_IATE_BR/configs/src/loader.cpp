@@ -339,10 +339,81 @@ namespace bigiate::config {
 
 
     // Парсинг LoggingConfig
+// Парсинг LoggingConfig
     [[nodiscard]] std::expected<LoggingConfig, std::string>
         ParseLogging(const YAML::Node& node) {
         LoggingConfig logging;
-        // Заполнить все поля
+
+        if (!node.IsMap()) {
+            return std::unexpected("Logging configuration must be a YAML map");
+        }
+
+        // Основные настройки логирования
+        PARSE_OPTIONAL(logging, node, level, level, std::string, "info");
+        PARSE_OPTIONAL(logging, node, format, format, std::string, "json");
+
+        // Парсинг outputs (массив)
+        if (node["outputs"] && node["outputs"].IsSequence()) {
+            for (size_t i = 0; i < node["outputs"].size(); ++i) {
+                const auto& out_node = node["outputs"][i];
+
+                if (!out_node.IsMap()) {
+                    return std::unexpected("Logging output " + std::to_string(i + 1) + " must be a map");
+                }
+
+                LoggingConfig::Output output;
+
+                // type (обязательное)
+                if (!out_node["type"] || !out_node["type"].IsScalar()) {
+                    return std::unexpected("Logging output " + std::to_string(i + 1) +
+                        " missing required field: 'type'");
+                }
+                output.type = out_node["type"].as<std::string>();
+
+                // enabled (обязательное)
+                if (!out_node["enabled"] || !out_node["enabled"].IsScalar()) {
+                    return std::unexpected("Logging output " + std::to_string(i + 1) +
+                        " missing required field: 'enabled'");
+                }
+                output.enabled = out_node["enabled"].as<bool>();
+
+                // path (обязательное для file, опционально для console)
+                if (out_node["path"] && out_node["path"].IsScalar()) {
+                    output.path = out_node["path"].as<std::string>();
+                }
+                else if (output.type == "file") {
+                    return std::unexpected("File logging output " + std::to_string(i + 1) +
+                        " requires 'path' field");
+                }
+
+                // rotation (опционально)
+                PARSE_OPTIONAL(output, out_node, rotation, rotation, std::string, "daily");
+
+                // max_size_mb (опционально)
+                PARSE_OPTIONAL(output, out_node, max_size_mb, max_size_mb, int, 100);
+
+                // max_files (опционально)
+                PARSE_OPTIONAL(output, out_node, max_files, max_files, int, 7);
+
+                logging.outputs.push_back(output);
+            }
+        }
+        else {
+            // Если outputs не указан, создаём дефолтный console output
+            LoggingConfig::Output default_output;
+            default_output.type = "console";
+            default_output.enabled = true;
+            logging.outputs.push_back(default_output);
+        }
+
+        // Парсинг metrics (опционально)
+        if (node["metrics"] && node["metrics"].IsMap()) {
+            const auto& metrics_node = node["metrics"];
+
+            PARSE_OPTIONAL(logging.metrics, metrics_node, enabled, enabled, bool, true);
+            PARSE_OPTIONAL(logging.metrics, metrics_node, interval_seconds, interval_seconds, int, 60);
+        }
+
         return logging;
     }
 

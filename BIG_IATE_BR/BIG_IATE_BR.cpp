@@ -7,6 +7,30 @@
 // Создаём алиас для удобства
 namespace config = bigiate::config;
 
+void PrintLoggingConfig(const config::LoggingConfig& logging) {
+    std::cout << "\n=== Logging Configuration ===\n";
+    std::cout << "Level: " << logging.level << "\n";
+    std::cout << "Format: " << logging.format << "\n";
+
+    std::cout << "\n--- Outputs ---\n";
+    for (size_t i = 0; i < logging.outputs.size(); ++i) {
+        const auto& out = logging.outputs[i];
+        std::cout << "Output " << i + 1 << ":\n";
+        std::cout << "  Type: " << out.type << "\n";
+        std::cout << "  Enabled: " << (out.enabled ? "true" : "false") << "\n";
+        if (out.path.has_value()) {
+            std::cout << "  Path: " << out.path.value() << "\n";
+        }
+        std::cout << "  Rotation: " << out.rotation << "\n";
+        std::cout << "  Max size: " << out.max_size_mb << " MB\n";
+        std::cout << "  Max files: " << out.max_files << "\n";
+    }
+
+    std::cout << "\n--- Metrics ---\n";
+    std::cout << "Enabled: " << (logging.metrics.enabled ? "true" : "false") << "\n";
+    std::cout << "Interval: " << logging.metrics.interval_seconds << " seconds\n";
+}
+
 void PrintDatabaseConfig(const config::DatabaseConfig& db) {
     std::cout << "\n=== Database Configuration ===\n";
     std::cout << "Host: " << db.host << "\n";
@@ -192,6 +216,22 @@ int main(int argc, char* argv[]) {
         }
         else {
             std::cout << "ℹ️ No recognition configuration found\n";
+        }
+
+        if (root["logging"]) {
+            std::cout << "\n📝 Parsing logging configuration...\n";
+            auto logging_result = config::ParseLogging(root["logging"]);
+
+            if (logging_result.has_value()) {
+                std::cout << "✅ Logging config parsed successfully!\n";
+                PrintLoggingConfig(logging_result.value());
+            }
+            else {
+                std::cout << "❌ Failed to parse logging config: " << logging_result.error() << "\n";
+            }
+        }
+        else {
+            std::cout << "ℹ️ No logging configuration found\n";
         }
 
         // Парсим конфигурацию камер
