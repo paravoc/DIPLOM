@@ -25,6 +25,34 @@
 #include <expected>
 #include <string>
 
+// Для обязательных полей
+#define PARSE_REQUIRED(node, field, member, type) \
+    do { \
+        if (!node[#field] || !node[#field].IsScalar()) { \
+            return std::unexpected("Database missing required field: '" #field "'"); \
+        } \
+        db.member = node[#field].as<type>(); \
+    } while(0)
+
+// Для опциональных полей с дефолтом
+#define PARSE_OPTIONAL(node, field, member, type, default_value) \
+    do { \
+        if (node[#field] && node[#field].IsScalar()) { \
+            db.member = node[#field].as<type>(); \
+        } else { \
+            db.member = default_value; \
+        } \
+    } while(0)
+
+// Для опциональных полей без дефолта (оставляем как есть)
+#define PARSE_OPTIONAL_NODEFAULT(node, field, member, type) \
+    do { \
+        if (node[#field] && node[#field].IsScalar()) { \
+            db.member = node[#field].as<type>(); \
+        } \
+    } while(0)
+
+
 // Инициализация логгера (вызвать один раз в main)
 #define CONFIG_INIT_LOGGER() \
     do { \

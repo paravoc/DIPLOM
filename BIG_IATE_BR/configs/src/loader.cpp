@@ -177,11 +177,43 @@ namespace bigiate::config {
         return camera;
     }
 
-    // Парсинг DatabaseConfig
+    // Парсинг DatabaseConfig для PostgreSQL
     [[nodiscard]] std::expected<DatabaseConfig, std::string>
         ParseDatabase(const YAML::Node& node) {
         DatabaseConfig db;
-        // Заполнить все поля
+
+        if (!node.IsMap()) {
+            return std::unexpected("Database configuration must be a YAML map");
+        }
+
+        // Обязательные поля
+        PARSE_REQUIRED(node, "username", username, std::string);
+
+        // Опциональные поля с дефолтами
+        PARSE_OPTIONAL(node, "host", host, std::string, "localhost");
+        PARSE_OPTIONAL(node, "port", port, int, 5432);
+        PARSE_OPTIONAL(node, "name", name, std::string, "face_db");
+        PARSE_OPTIONAL(node, "schema", schema, std::string, "public");
+
+        // Парсинг pool (опционально)
+        if (node["pool"] && node["pool"].IsMap()) {
+            const auto& pool_node = node["pool"];
+
+            PARSE_OPTIONAL(pool_node, "min_connections", pool.min_connections, int, 2);
+            PARSE_OPTIONAL(pool_node, "max_connections", pool.max_connections, int, 10);
+            PARSE_OPTIONAL(pool_node, "connection_timeout_seconds", pool.connection_timeout_seconds, int, 5);
+            PARSE_OPTIONAL(pool_node, "idle_timeout_seconds", pool.idle_timeout_seconds, int, 60);
+        }
+
+        // Парсинг vector (опционально)
+        if (node["vector"] && node["vector"].IsMap()) {
+            const auto& vector_node = node["vector"];
+
+            PARSE_OPTIONAL(vector_node, "dimension", vector.dimension, int, 512);
+            PARSE_OPTIONAL(vector_node, "similarity_threshold", vector.similarity_threshold, double, 0.75);
+            PARSE_OPTIONAL(vector_node, "index_type", vector.index_type, std::string, "ivfflat");
+        }
+
         return db;
     }
 
