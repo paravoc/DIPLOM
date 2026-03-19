@@ -1,4 +1,5 @@
-﻿#include <iostream>
+﻿#ifdef USE_CONSOLE
+#include <iostream>
 #include "configs/include/loader.h"
 #include "configs/include/print_config_utils.h"
 
@@ -24,3 +25,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+#endif
