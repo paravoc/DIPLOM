@@ -1,0 +1,120 @@
+version: "1.0.0"
+
+server:
+  hostname: "turnstile-01"
+  thread_pool_size: 4
+  frame_queue_size: 100
+
+cameras:
+  - id: 1
+    name: "Main entrance"
+    enabled: true
+    connection:
+      protocol: "rtsp"
+      host: "192.168.1.100"
+      port: 554
+      path: "/stream1"
+    capture:
+      fps: 15
+      width: 1280
+      height: 720
+      rotation: 0
+  
+  - id: 2
+    name: "Local webcam"
+    enabled: true
+    connection:
+      protocol: "usb"
+      device: "/dev/video0"
+    capture:
+      fps: 30
+      width: 640
+      height: 480
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "face_db"
+  schema: "public"
+  username: "face_service"
+  pool:
+    min_connections: 2
+    max_connections: 10
+    connection_timeout_seconds: 5
+    idle_timeout_seconds: 60
+  vector:
+    dimension: 512
+    similarity_threshold: 0.75
+    index_type: "ivfflat"
+
+bastion:
+  enabled: true
+  protocol: "tcp"
+  host: "192.168.1.200"
+  port: 9000
+  username: "turnstile_client"
+  connect_timeout_seconds: 3
+  send_timeout_seconds: 2
+  receive_timeout_seconds: 3
+  retry:
+    max_attempts: 3
+    delay_ms: 100
+    backoff_multiplier: 2
+
+recognition:
+  model:
+    type: "opencv_face"
+    path: "/opt/models/face_detection.caffemodel"
+    config_path: "/opt/models/face_detection.prototxt"
+    backend: "opencv"
+  detection:
+    min_face_size: 100
+    max_faces_per_frame: 5
+    confidence_threshold: 0.5
+  matching:
+    threshold: 0.6
+    max_distance: 1.5
+  anti_passback:
+    enabled: true
+    cooldown_seconds: 30
+    strict_mode: false
+
+logging:
+  level: "info"
+  format: "json"
+  outputs:
+    - type: "console"
+      enabled: true
+    - type: "file"
+      enabled: true
+      path: "/var/log/face_turnstile.log"
+      rotation: "daily"
+      max_size_mb: 100
+      max_files: 7
+  metrics:
+    enabled: true
+    interval_seconds: 60
+
+web:
+  enabled: false
+  host: "0.0.0.0"
+  port: 8080
+  ssl:
+    enabled: false
+    cert_path: ""
+    key_path: ""
+
+security:
+  encrypt_secrets: true
+  secrets_file: "/etc/face_turnstile/secrets.yaml.enc"
+  config_file_mode: 0600
+  log_file_mode: 0640
+  allowed_networks:
+    - "192.168.1.0/24"
+    - "10.0.0.0/8"
+  encryption:
+    algorithm: "AES-256-GCM"
+    key_derivation: "PBKDF2"
+    iterations: 100000
+    salt_length: 32
+    prompt_at_startup: true
