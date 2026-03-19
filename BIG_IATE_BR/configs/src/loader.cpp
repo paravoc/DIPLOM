@@ -2,6 +2,7 @@
 #include <yaml-cpp/yaml.h>
 #include <fstream>
 #include <filesystem>
+#include <unordered_set>
 
 namespace bigiate::config {
 
@@ -463,12 +464,179 @@ namespace bigiate::config {
     // ШАГ 4: Валидация (после загрузки)
     // ====================================================
 
+// ====================================================
+// ШАГ 4: Валидация (после загрузки)
+// ====================================================
+
     [[nodiscard]] std::expected<void, std::string>
         ValidateConfig(const ServerConfig& config) {
+
         // 1. Проверить что есть хотя бы одна камера
+        if (config.cameras.empty()) {
+            return std::unexpected("At least one camera must be configured");
+        }
+
         // 2. Проверить уникальность id камер
-        // 3. Проверить что порты в диапазоне
-        // 4. Проверить что пути к моделям указаны
+        std::unordered_set<int> camera_ids;
+        for (const auto& camera : config.cameras) {
+            if (camera_ids.find(camera.id) != camera_ids.end()) {
+                return std::unexpected("Duplicate camera ID: " + std::to_string(camera.id));
+            }
+            camera_ids.insert(camera.id);
+        }
+
+        // 3. Проверить что порты в диапазоне (1-65535)
+        // Database port
+        if (config.database.port <= 0 || config.database.port > 65535) {
+            return std::unexpected("Database port must be between 1 and 65535");
+        }
+
+        // Bastion port если enabled
+        if (config.bastion.enabled) {
+            if (config.bastion.port <= 0 || config.bastion.port > 65535) {
+                return std::unexpected("Bastion port must be between 1 and 65535");
+            }
+        }
+
+        // Camera ports
+        for (const auto& camera : config.cameras) {
+            if (camera.connection.protocol != "usb") {
+                if (camera.connection.port <= 0 || camera.connection.port > 65535) {
+                    return std::unexpected("Camera " + std::to_string(camera.id) +
+                        ": port must be between 1 and 65535");
+                }
+            }
+        }
+
+        // 4. Проверить что пути к моделям указаны (для recognition)
+        // Detector model path
+        if (config.recognition.detector.model_path.empty()) {
+            return std::unexpected("Recognition detector model path is required");
+        }
+
+        // Для SSD Caffe моделей нужен config_path
+        if (config.recognition.detector.type == "ssd" &&
+            config.recognition.detector.model_path.find(".caffemodel") != std::string::npos) {
+            if (!config.recognition.detector.config_path.has_value()) {
+                return std::unexpected("SSD Caffe model requires config_path (.prototxt file)");
+            }
+        }
+
+        // Extractor model path
+        if (config.recognition.extractor.model_path.empty()) {
+            return std::unexpected("Recognition extractor model path is required");
+        }
+
+        // 5. Проверить настройки пула соединений БД
+        if (config.database.pool.min_connections <= 0) {
+            return std::unexpected("Database min_connections must be positive");
+        }
+        if (config.database.pool.max_connections < config.database.pool.min_connections) {
+            return std::unexpected("Database max_connections must be >= min_connections");
+        }
+        if (config.database.pool.connection_timeout_seconds <= 0) {
+            return std::unexpected("Database connection_timeout_seconds must be positive");
+        }
+
+        // 6. Проверить настройки векторного поиска
+        if (config.database.vector.dimension <= 0) {
+            return std::unexpected("Vector dimension must be positive");
+        }
+        if (config.database.vector.similarity_threshold < 0.0f ||
+            config.database.vector.similarity_threshold > 1.0f) {
+            return std::unexpected("Similarity threshold must be between 0.0 and 1.0");
+        }
+
+        // 7. Проверить настройки камер
+        for (const auto& camera : config.cameras) {
+            // Проверка FPS
+            if (camera.capture.fps <= 0 || camera.capture.fps > 120) {
+                return std::unexpected("Camera " + std::to_string(camera.id) +
+                    ": FPS must be between 1 and 120");
+            }
+
+            // Проверка разрешения
+            if (camera.capture.width <= 0 || camera.capture.height <= 0) {
+                return std::unexpected("Camera " + std::to_string(camera.id) +
+                    ": Resolution must be positive");
+            }
+
+            // Проверка rotation
+            if (camera.capture.rotation % 90 != 0 ||
+                camera.capture.rotation < 0 ||
+                camera.capture.rotation > 270) {
+                return std::unexpected("Camera " + std::to_string(camera.id) +
+                    ": Rotation must be 0, 90, 180, or 270");
+            }
+
+            // Для USB камер проверяем device
+            if (camera.connection.protocol == "usb" && !camera.connection.device.has_value()) {
+                return std::unexpected("USB camera " + std::to_string(camera.id) +
+                    ": device path is required");
+            }
+        }
+
+        // 8. Проверить настройки бастиона
+        if (config.bastion.enabled) {
+            if (config.bastion.host.empty()) {
+                return std::unexpected("Bastion host is required when enabled");
+            }
+            if (config.bastion.timeout.connect_seconds <= 0) {
+                return std::unexpected("Bastion connect timeout must be positive");
+            }
+            if (config.bastion.retry.max_attempts <= 0) {
+                return std::unexpected("Bastion max_attempts must be positive");
+            }
+        }
+
+        // 9. Проверить настройки безопасности
+        if (config.security.encrypt_secrets) {
+            if (config.security.secrets_file.empty()) {
+                return std::unexpected("Secrets file path is required when encryption is enabled");
+            }
+        }
+
+        if (config.security.encryption.iterations < 10000) {
+            return std::unexpected("Encryption iterations should be at least 10000 for security");
+        }
+
+        // 10. Проверить настройки логирования
+        bool has_enabled_output = false;
+        for (const auto& output : config.logging.outputs) {
+            if (output.enabled) {
+                has_enabled_output = true;
+                if (output.type == "file" && !output.path.has_value()) {
+                    return std::unexpected("File logging output requires path");
+                }
+            }
+        }
+        if (!has_enabled_output) {
+            return std::unexpected("At least one logging output must be enabled");
+        }
+
+        if (config.logging.metrics.interval_seconds <= 0) {
+            return std::unexpected("Metrics interval must be positive");
+        }
+
+        // 11. Проверить настройки распознавания
+        if (config.recognition.detector.confidence_threshold < 0.0f ||
+            config.recognition.detector.confidence_threshold > 1.0f) {
+            return std::unexpected("Detector confidence threshold must be between 0.0 and 1.0");
+        }
+
+        if (config.recognition.matching.threshold < 0.0f ||
+            config.recognition.matching.threshold > 1.0f) {
+            return std::unexpected("Matching threshold must be between 0.0 and 1.0");
+        }
+
+        if (config.recognition.performance.skip_frames < 0) {
+            return std::unexpected("Skip frames must be non-negative");
+        }
+        if (config.recognition.performance.max_faces_per_frame <= 0) {
+            return std::unexpected("Max faces per frame must be positive");
+        }
+
+        // Всё хорошо
         return {};
     }
 

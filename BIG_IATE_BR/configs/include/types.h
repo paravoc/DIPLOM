@@ -180,28 +180,24 @@ namespace bigiate::config {
         bool first_run = false;
     };
 
-    // Главная структура конфига
     struct ServerConfig {
+        // Основные настройки сервера
         std::string hostname = "bigiate-server";
         int thread_pool_size = 4;
         size_t frame_queue_size = 100;
 
+        // Версия конфига
         Version version;
-        std::vector<CameraConfig> cameras;
+
+        // Основные секции
         DatabaseConfig database;
         BastionConfig bastion;
         RecognitionConfig recognition;
         LoggingConfig logging;
         SecurityConfig security;
 
-        struct Web {
-            bool enabled = false;
-            std::string host = "0.0.0.0";
-            int port = 8080;
-            bool ssl_enabled = false;
-            std::optional<std::string> cert_path;  // если ssl_enabled=true
-            std::optional<std::string> key_path;   // если ssl_enabled=true
-        } web;
+        // Камеры (обычно после основных секций)
+        std::vector<CameraConfig> cameras;
     };
 
     // Секреты (пароли)
