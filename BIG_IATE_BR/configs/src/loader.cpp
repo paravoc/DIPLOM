@@ -698,16 +698,5 @@ namespace bigiate::config {
             return std::unexpected(std::string("Error: ") + e.what());
         }
     }
-    // ====================================================
-    // ШАГ 6: Отладочная печать
-    // ====================================================
-
-    void DumpConfig(const ServerConfig& config) {
-        // Распечатать основные поля конфига
-        // - версию
-        // - количество камер
-        // - хост БД
-        // - и т.д.
-    }
 
 } // namespace bigiate::config
