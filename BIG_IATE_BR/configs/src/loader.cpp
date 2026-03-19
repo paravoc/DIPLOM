@@ -94,11 +94,86 @@ namespace bigiate::config {
     [[nodiscard]] std::expected<CameraConfig, std::string>
         ParseCamera(const YAML::Node& node) {
         CameraConfig camera;
+
         // 1. Прочитать id (обязательное)
+        if (!node["id"] || !node["id"].IsScalar()) {
+            return std::unexpected("Camera missing required field: 'id'");
+        }
+        camera.id = node["id"].as<int>();  // id это int
+
         // 2. Прочитать name (обязательное)
+        if (!node["name"] || !node["name"].IsScalar()) {
+            return std::unexpected("Camera missing required field: 'name'");
+        }
+        camera.name = node["name"].as<std::string>();
+
         // 3. Прочитать enabled (опционально, дефолт true)
-        // 4. Прочитать connection
-        // 5. Прочитать capture
+        if (node["enabled"] && node["enabled"].IsScalar()) {
+            camera.enabled = node["enabled"].as<bool>();
+        }
+        // иначе оставляем true (уже установлено в структуре)
+
+        // 4. Прочитать connection (опционально, но если есть - парсим)
+        if (node["connection"] && node["connection"].IsMap()) {
+            const auto& conn_node = node["connection"];
+
+            // protocol (опционально)
+            if (conn_node["protocol"] && conn_node["protocol"].IsScalar()) {
+                camera.connection.protocol = conn_node["protocol"].as<std::string>();
+            }
+
+            // host (обязательное для network камер)
+            if (conn_node["host"] && conn_node["host"].IsScalar()) {
+                camera.connection.host = conn_node["host"].as<std::string>();
+            }
+            else if (camera.connection.protocol != "usb") {
+                // Если не USB, то host обязателен
+                return std::unexpected("Camera " + std::to_string(camera.id) +
+                    ": 'host' required for protocol '" +
+                    camera.connection.protocol + "'");
+            }
+
+            // port (опционально)
+            if (conn_node["port"] && conn_node["port"].IsScalar()) {
+                camera.connection.port = conn_node["port"].as<int>();
+            }
+
+            // path (опционально)
+            if (conn_node["path"] && conn_node["path"].IsScalar()) {
+                camera.connection.path = conn_node["path"].as<std::string>();
+            }
+
+            // device (опционально, только для USB)
+            if (conn_node["device"] && conn_node["device"].IsScalar()) {
+                camera.connection.device = conn_node["device"].as<std::string>();
+            }
+        }
+
+        // 5. Прочитать capture (опционально, но если есть - парсим)
+        if (node["capture"] && node["capture"].IsMap()) {
+            const auto& cap_node = node["capture"];
+
+            // fps (опционально)
+            if (cap_node["fps"] && cap_node["fps"].IsScalar()) {
+                camera.capture.fps = cap_node["fps"].as<int>();
+            }
+
+            // width (опционально)
+            if (cap_node["width"] && cap_node["width"].IsScalar()) {
+                camera.capture.width = cap_node["width"].as<int>();
+            }
+
+            // height (опционально)
+            if (cap_node["height"] && cap_node["height"].IsScalar()) {
+                camera.capture.height = cap_node["height"].as<int>();
+            }
+
+            // rotation (опционально)
+            if (cap_node["rotation"] && cap_node["rotation"].IsScalar()) {
+                camera.capture.rotation = cap_node["rotation"].as<int>();
+            }
+        }
+
         return camera;
     }
 
