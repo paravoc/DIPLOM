@@ -88,19 +88,20 @@ namespace bigiate::config {
     };
 
     // Настройки распознавания
+    // Настройки распознавания
     struct RecognitionConfig {
-        // SSD-R10 детектор лиц
+        // SSD детектор лиц
         struct Detector {
-            std::string type = "ssd-r10";
+            std::string type = "ssd";  // ssd, yolov5, etc.
             std::string model_path;
-            std::optional<std::string> config_path;  // может не быть для ONNX
-            std::string backend = "opencv";
+            std::optional<std::string> config_path;  // для Caffe моделей (.prototxt)
+            std::string backend = "opencv";  // opencv, onnxruntime, tensorrt
             float confidence_threshold = 0.5f;
             int input_width = 300;
             int input_height = 300;
             bool use_gpu = false;
             int batch_size = 1;
-            std::optional<int> gpu_id;  // если use_gpu=true, можно указать конкретный
+            std::optional<int> gpu_id;
         } detector;
 
         // ArcFace экстрактор эмбеддингов
@@ -112,7 +113,7 @@ namespace bigiate::config {
             bool normalize = true;
             bool use_gpu = false;
             int batch_size = 1;
-            std::optional<int> gpu_id;  // если use_gpu=true, можно указать конкретный
+            std::optional<int> gpu_id;
         } extractor;
 
         // Настройки сравнения и поиска в БД

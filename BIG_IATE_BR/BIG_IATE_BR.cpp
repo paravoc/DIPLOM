@@ -7,7 +7,6 @@
 // Создаём алиас для удобства
 namespace config = bigiate::config;
 
-
 void PrintDatabaseConfig(const config::DatabaseConfig& db) {
     std::cout << "\n=== Database Configuration ===\n";
     std::cout << "Host: " << db.host << "\n";
@@ -51,6 +50,85 @@ void PrintCameraConfig(const config::CameraConfig& camera) {
     std::cout << "Rotation: " << camera.capture.rotation << "°\n";
 }
 
+void PrintBastionConfig(const config::BastionConfig& bastion) {
+    std::cout << "\n=== Bastion Configuration ===\n";
+    std::cout << "Enabled: " << (bastion.enabled ? "true" : "false") << "\n";
+    std::cout << "Protocol: " << bastion.protocol << "\n";
+    std::cout << "Host: " << bastion.host << "\n";
+    std::cout << "Port: " << bastion.port << "\n";
+
+    if (bastion.username.has_value()) {
+        std::cout << "Username: " << bastion.username.value() << "\n";
+    }
+    else {
+        std::cout << "Username: <not set>\n";
+    }
+
+    std::cout << "\n--- Timeouts ---\n";
+    std::cout << "Connect timeout: " << bastion.timeout.connect_seconds << "s\n";
+    std::cout << "Send timeout: " << bastion.timeout.send_seconds << "s\n";
+    std::cout << "Receive timeout: " << bastion.timeout.receive_seconds << "s\n";
+
+    std::cout << "\n--- Retry Settings ---\n";
+    std::cout << "Max attempts: " << bastion.retry.max_attempts << "\n";
+    std::cout << "Delay: " << bastion.retry.delay_ms << "ms\n";
+    std::cout << "Backoff multiplier: " << bastion.retry.backoff_multiplier << "\n";
+}
+
+// НОВАЯ ФУНКЦИЯ ДЛЯ ВЫВОДА RECOGNITION CONFIG
+void PrintRecognitionConfig(const config::RecognitionConfig& recognition) {
+    std::cout << "\n=== Recognition Configuration ===\n";
+
+    // Detector
+    std::cout << "\n--- Detector (SSD) ---\n";
+    std::cout << "Type: " << recognition.detector.type << "\n";
+    std::cout << "Model path: " << recognition.detector.model_path << "\n";
+    if (recognition.detector.config_path.has_value()) {
+        std::cout << "Config path: " << recognition.detector.config_path.value() << "\n";
+    }
+    std::cout << "Backend: " << recognition.detector.backend << "\n";
+    std::cout << "Confidence threshold: " << recognition.detector.confidence_threshold << "\n";
+    std::cout << "Input size: " << recognition.detector.input_width << "x" << recognition.detector.input_height << "\n";
+    std::cout << "Use GPU: " << (recognition.detector.use_gpu ? "true" : "false") << "\n";
+    if (recognition.detector.gpu_id.has_value()) {
+        std::cout << "GPU ID: " << recognition.detector.gpu_id.value() << "\n";
+    }
+    std::cout << "Batch size: " << recognition.detector.batch_size << "\n";
+
+    // Extractor
+    std::cout << "\n--- Extractor (ArcFace) ---\n";
+    std::cout << "Type: " << recognition.extractor.type << "\n";
+    std::cout << "Model path: " << recognition.extractor.model_path << "\n";
+    std::cout << "Backend: " << recognition.extractor.backend << "\n";
+    std::cout << "Embedding size: " << recognition.extractor.embedding_size << "\n";
+    std::cout << "Normalize: " << (recognition.extractor.normalize ? "true" : "false") << "\n";
+    std::cout << "Use GPU: " << (recognition.extractor.use_gpu ? "true" : "false") << "\n";
+    if (recognition.extractor.gpu_id.has_value()) {
+        std::cout << "GPU ID: " << recognition.extractor.gpu_id.value() << "\n";
+    }
+    std::cout << "Batch size: " << recognition.extractor.batch_size << "\n";
+
+    // Matching
+    std::cout << "\n--- Matching ---\n";
+    std::cout << "Threshold: " << recognition.matching.threshold << "\n";
+    std::cout << "Max distance: " << recognition.matching.max_distance << "\n";
+    std::cout << "Top K: " << recognition.matching.top_k << "\n";
+    std::cout << "Use index: " << (recognition.matching.use_index ? "true" : "false") << "\n";
+
+    // Anti-passback
+    std::cout << "\n--- Anti-passback ---\n";
+    std::cout << "Enabled: " << (recognition.anti_passback.enabled ? "true" : "false") << "\n";
+    std::cout << "Cooldown seconds: " << recognition.anti_passback.cooldown_seconds << "\n";
+    std::cout << "Strict mode: " << (recognition.anti_passback.strict_mode ? "true" : "false") << "\n";
+
+    // Performance
+    std::cout << "\n--- Performance ---\n";
+    std::cout << "Skip frames: " << recognition.performance.skip_frames << "\n";
+    std::cout << "Max faces per frame: " << recognition.performance.max_faces_per_frame << "\n";
+    std::cout << "Parallel detection: " << (recognition.performance.parallel_detection ? "true" : "false") << "\n";
+    std::cout << "Queue size: " << recognition.performance.queue_size << "\n";
+}
+
 int main(int argc, char* argv[]) {
 
     try {
@@ -80,6 +158,40 @@ int main(int argc, char* argv[]) {
         }
         else {
             std::cout << "ℹ️ No database configuration found\n";
+        }
+
+        // Парсинг бастиона
+        if (root["bastion"]) {
+            std::cout << "\n🛡️ Parsing bastion configuration...\n";
+            auto bastion_result = config::ParseBastion(root["bastion"]);
+
+            if (bastion_result.has_value()) {
+                std::cout << "✅ Bastion config parsed successfully!\n";
+                PrintBastionConfig(bastion_result.value());
+            }
+            else {
+                std::cout << "❌ Failed to parse bastion config: " << bastion_result.error() << "\n";
+            }
+        }
+        else {
+            std::cout << "ℹ️ No bastion configuration found\n";
+        }
+
+        // НОВОЕ: Парсинг распознавания
+        if (root["recognition"]) {
+            std::cout << "\n🔍 Parsing recognition configuration...\n";
+            auto recognition_result = config::ParseRecognition(root["recognition"]);
+
+            if (recognition_result.has_value()) {
+                std::cout << "✅ Recognition config parsed successfully!\n";
+                PrintRecognitionConfig(recognition_result.value());
+            }
+            else {
+                std::cout << "❌ Failed to parse recognition config: " << recognition_result.error() << "\n";
+            }
+        }
+        else {
+            std::cout << "ℹ️ No recognition configuration found\n";
         }
 
         // Парсим конфигурацию камер

@@ -152,6 +152,7 @@ namespace bigiate::config {
 
         return camera;
     }
+
     // Парсинг DatabaseConfig для PostgreSQL
     [[nodiscard]] std::expected<DatabaseConfig, std::string>
         ParseDatabase(const YAML::Node& node) {
@@ -237,9 +238,105 @@ namespace bigiate::config {
     [[nodiscard]] std::expected<RecognitionConfig, std::string>
         ParseRecognition(const YAML::Node& node) {
         RecognitionConfig recognition;
-        // Заполнить все поля (SSD, ArcFace, matching, anti_passback)
+
+        if (!node.IsMap()) {
+            return std::unexpected("Recognition configuration must be a YAML map");
+        }
+
+        // ==================== Detector (SSD) ====================
+        if (node["detector"] && node["detector"].IsMap()) {
+            const auto& det_node = node["detector"];
+
+            PARSE_OPTIONAL(recognition.detector, det_node, type, type, std::string, "ssd");
+            PARSE_OPTIONAL(recognition.detector, det_node, model_path, model_path, std::string, "");
+            PARSE_OPTIONAL(recognition.detector, det_node, backend, backend, std::string, "opencv");
+            PARSE_OPTIONAL(recognition.detector, det_node, confidence_threshold, confidence_threshold, float, 0.5f);
+            PARSE_OPTIONAL(recognition.detector, det_node, input_width, input_width, int, 300);
+            PARSE_OPTIONAL(recognition.detector, det_node, input_height, input_height, int, 300);
+            PARSE_OPTIONAL(recognition.detector, det_node, use_gpu, use_gpu, bool, false);
+            PARSE_OPTIONAL(recognition.detector, det_node, batch_size, batch_size, int, 1);
+
+            // config_path (обязательно для Caffe моделей!)
+            if (det_node["config_path"] && det_node["config_path"].IsScalar()) {
+                recognition.detector.config_path = det_node["config_path"].as<std::string>();
+            }
+            else if (recognition.detector.type == "ssd" && recognition.detector.model_path.find(".caffemodel") != std::string::npos) {
+                // Для Caffe моделей .caffemodel нужен .prototxt
+                return std::unexpected("SSD Caffe model requires 'config_path' field with .prototxt file");
+            }
+
+            // gpu_id (опционально)
+            if (det_node["gpu_id"] && det_node["gpu_id"].IsScalar()) {
+                recognition.detector.gpu_id = det_node["gpu_id"].as<int>();
+            }
+
+            // Проверка наличия model_path
+            if (recognition.detector.model_path.empty()) {
+                return std::unexpected("Detector 'model_path' is required");
+            }
+        }
+        else {
+            return std::unexpected("Recognition config missing required section: 'detector'");
+        }
+
+        // ==================== Extractor (ArcFace) ====================
+        if (node["extractor"] && node["extractor"].IsMap()) {
+            const auto& ext_node = node["extractor"];
+
+            PARSE_OPTIONAL(recognition.extractor, ext_node, type, type, std::string, "arcface");
+            PARSE_OPTIONAL(recognition.extractor, ext_node, model_path, model_path, std::string, "");
+            PARSE_OPTIONAL(recognition.extractor, ext_node, backend, backend, std::string, "opencv");
+            PARSE_OPTIONAL(recognition.extractor, ext_node, embedding_size, embedding_size, int, 512);
+            PARSE_OPTIONAL(recognition.extractor, ext_node, normalize, normalize, bool, true);
+            PARSE_OPTIONAL(recognition.extractor, ext_node, use_gpu, use_gpu, bool, false);
+            PARSE_OPTIONAL(recognition.extractor, ext_node, batch_size, batch_size, int, 1);
+
+            // gpu_id (опционально)
+            if (ext_node["gpu_id"] && ext_node["gpu_id"].IsScalar()) {
+                recognition.extractor.gpu_id = ext_node["gpu_id"].as<int>();
+            }
+
+            // Проверка наличия model_path
+            if (recognition.extractor.model_path.empty()) {
+                return std::unexpected("Extractor 'model_path' is required");
+            }
+        }
+        else {
+            return std::unexpected("Recognition config missing required section: 'extractor'");
+        }
+
+        // ==================== Matching ====================
+        if (node["matching"] && node["matching"].IsMap()) {
+            const auto& match_node = node["matching"];
+
+            PARSE_OPTIONAL(recognition.matching, match_node, threshold, threshold, float, 0.6f);
+            PARSE_OPTIONAL(recognition.matching, match_node, max_distance, max_distance, float, 1.5f);
+            PARSE_OPTIONAL(recognition.matching, match_node, top_k, top_k, int, 1);
+            PARSE_OPTIONAL(recognition.matching, match_node, use_index, use_index, bool, true);
+        }
+
+        // ==================== AntiPassback ====================
+        if (node["anti_passback"] && node["anti_passback"].IsMap()) {
+            const auto& apb_node = node["anti_passback"];
+
+            PARSE_OPTIONAL(recognition.anti_passback, apb_node, enabled, enabled, bool, true);
+            PARSE_OPTIONAL(recognition.anti_passback, apb_node, cooldown_seconds, cooldown_seconds, int, 30);
+            PARSE_OPTIONAL(recognition.anti_passback, apb_node, strict_mode, strict_mode, bool, false);
+        }
+
+        // ==================== Performance ====================
+        if (node["performance"] && node["performance"].IsMap()) {
+            const auto& perf_node = node["performance"];
+
+            PARSE_OPTIONAL(recognition.performance, perf_node, skip_frames, skip_frames, int, 2);
+            PARSE_OPTIONAL(recognition.performance, perf_node, max_faces_per_frame, max_faces_per_frame, int, 10);
+            PARSE_OPTIONAL(recognition.performance, perf_node, parallel_detection, parallel_detection, bool, false);
+            PARSE_OPTIONAL(recognition.performance, perf_node, queue_size, queue_size, int, 100);
+        }
+
         return recognition;
     }
+
 
     // Парсинг LoggingConfig
     [[nodiscard]] std::expected<LoggingConfig, std::string>
