@@ -1,4 +1,3 @@
-
 #ifndef USE_CONSOLE
 #include <wx/wx.h>
 #include "ui/include/MainFrame.h"
@@ -31,7 +30,7 @@ public:
                 "Ошибка",
                 wxOK | wxICON_ERROR
             );
-            // Можно продолжить с дефолтными настройками
+            return false;
         }
         else {
             m_configResult = *result;
@@ -40,9 +39,8 @@ public:
                 m_configResult.config.cameras.size());
         }
 
-        // Создаём главное окно и передаём конфиг
-        MainFrame* frame = new MainFrame("BIG IATE - Система контроля доступа");
-        //frame->SetConfig(m_configResult.config);  // нужно добавить этот метод
+        // Создаём главное окно
+        MainFrame* frame = new MainFrame();
         frame->Show(true);
 
         return true;

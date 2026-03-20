@@ -136,8 +136,8 @@
     <ClCompile Include="configs\src\print_config_utils.cpp" />
     <ClCompile Include="main_gui.cpp" />
     <ClCompile Include="ui\src\CaneraPanel.cpp" />
-    <ClCompile Include="ui\src\EventLog.cpp" />
-    <ClCompile Include="ui\src\LoginDialog.cpp" />
+    <ClCompile Include="ui\src\StatsPanel.cpp" />
+    <ClCompile Include="ui\src\LogPanel.cpp" />
     <ClCompile Include="ui\src\MainFrame.cpp" />
     <ClCompile Include="ui\src\SettingsDialog.cpp" />
   </ItemGroup>
@@ -152,10 +152,10 @@
     <ClInclude Include="configs\include\types.h" />
     <ClInclude Include="configs\include\macros.h" />
     <ClInclude Include="ui\include\CaneraPanel.h" />
-    <ClInclude Include="ui\include\EventLog.h" />
     <ClInclude Include="ui\include\LoginDialog.h" />
+    <ClInclude Include="ui\include\LogPanel.h" />
     <ClInclude Include="ui\include\MainFrame.h" />
-    <ClInclude Include="ui\include\SettingsDialog.h" />
+    <ClInclude Include="ui\include\StatsPanel.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
