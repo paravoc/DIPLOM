@@ -1,127 +1,152 @@
 #include "../include/LogPanel.h"
 #include <algorithm>
+#include <wx/statline.h>
+#include <wx/gbsizer.h>
 
 #define _T(str) wxString::FromUTF8(str)
 
 enum {
-    ID_FilterAll = 1000,
-    ID_FilterAuth,
+    ID_FilterAuth = 1000,
     ID_FilterDenied,
     ID_FilterUnknown,
     ID_FilterSystem,
-    ID_TimeFilterApply,
-    ID_TimeFilterClear
+    ID_FilterClear,
+    ID_TimeFilterEnable,
+    ID_SliderFrom,
+    ID_SliderTo
 };
 
 wxBEGIN_EVENT_TABLE(LogPanel, wxPanel)
 EVT_LIST_COL_CLICK(wxID_ANY, LogPanel::OnColumnClick)
-EVT_BUTTON(ID_FilterAll, LogPanel::OnFilterClick)
 EVT_BUTTON(ID_FilterAuth, LogPanel::OnFilterClick)
 EVT_BUTTON(ID_FilterDenied, LogPanel::OnFilterClick)
 EVT_BUTTON(ID_FilterUnknown, LogPanel::OnFilterClick)
 EVT_BUTTON(ID_FilterSystem, LogPanel::OnFilterClick)
-EVT_BUTTON(ID_TimeFilterApply, LogPanel::OnTimeFilterApply)
-EVT_BUTTON(ID_TimeFilterClear, LogPanel::OnTimeFilterClear)
+EVT_BUTTON(ID_FilterClear, LogPanel::OnFilterClick)
+EVT_CHECKBOX(ID_TimeFilterEnable, LogPanel::OnTimeSliderChanged)
+EVT_SLIDER(ID_SliderFrom, LogPanel::OnTimeSliderChanged)
+EVT_SLIDER(ID_SliderTo, LogPanel::OnTimeSliderChanged)
 wxEND_EVENT_TABLE()
 
 LogPanel::LogPanel(wxWindow* parent)
-    : wxPanel(parent, wxID_ANY), m_timeFilterEnabled(false) {
+    : wxPanel(parent, wxID_ANY),
+    m_filterAuth(false), m_filterDenied(false), m_filterUnknown(false), m_filterSystem(false),
+    m_timeFilterEnabled(false) {
 
-    m_successColor = wxColour(0, 180, 0);
-    m_errorColor = wxColour(180, 0, 0);
-    m_warningColor = wxColour(255, 140, 0);
-    m_infoColor = wxColour(0, 120, 215);
+    m_successColor = wxColour(0, 200, 0);
+    m_errorColor = wxColour(220, 60, 60);
+    m_warningColor = wxColour(255, 160, 0);
+    m_infoColor = wxColour(80, 160, 255);
+    m_btnActiveColor = wxColour(0, 160, 255);
+    m_btnNormalColor = wxColour(55, 55, 70);
+    m_btnHoverColor = wxColour(75, 75, 95);
 
-    SetBackgroundColour(wxColour(35, 35, 45));
+    SetBackgroundColour(wxColour(30, 30, 40));
 
     wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
 
-    // ========== ПАНЕЛЬ ФИЛЬТРАЦИИ ПО ТИПУ ==========
+    // ========== ПАНЕЛЬ ФИЛЬТРОВ ==========
     wxPanel* filterPanel = new wxPanel(this);
-    filterPanel->SetBackgroundColour(wxColour(40, 40, 50));
+    filterPanel->SetBackgroundColour(wxColour(38, 38, 48));
+    filterPanel->SetForegroundColour(*wxWHITE);
 
     wxBoxSizer* filterSizer = new wxBoxSizer(wxHORIZONTAL);
 
-    wxStaticText* filterLabel = new wxStaticText(filterPanel, wxID_ANY, _T("Фильтр:"));
-    filterLabel->SetForegroundColour(*wxWHITE);
-    filterSizer->Add(filterLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
-
-    m_btnAll = new wxButton(filterPanel, ID_FilterAll, _T("📋 Все"));
-    m_btnAll->SetBackgroundColour(wxColour(0, 120, 215));
-    m_btnAll->SetForegroundColour(*wxWHITE);
-
+    // Кнопки фильтров
     m_btnAuth = new wxButton(filterPanel, ID_FilterAuth, _T("✅ Разрешённые"));
-    m_btnAuth->SetBackgroundColour(wxColour(0, 120, 215));
+    m_btnAuth->SetBackgroundColour(m_btnNormalColor);
     m_btnAuth->SetForegroundColour(*wxWHITE);
+    m_btnAuth->SetFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
+    filterSizer->Add(m_btnAuth, 0, wxRIGHT, 8);
 
     m_btnDenied = new wxButton(filterPanel, ID_FilterDenied, _T("❌ Запрещённые"));
-    m_btnDenied->SetBackgroundColour(wxColour(0, 120, 215));
+    m_btnDenied->SetBackgroundColour(m_btnNormalColor);
     m_btnDenied->SetForegroundColour(*wxWHITE);
+    filterSizer->Add(m_btnDenied, 0, wxRIGHT, 8);
 
     m_btnUnknown = new wxButton(filterPanel, ID_FilterUnknown, _T("❓ Неопознанные"));
-    m_btnUnknown->SetBackgroundColour(wxColour(0, 120, 215));
+    m_btnUnknown->SetBackgroundColour(m_btnNormalColor);
     m_btnUnknown->SetForegroundColour(*wxWHITE);
+    filterSizer->Add(m_btnUnknown, 0, wxRIGHT, 8);
 
     m_btnSystem = new wxButton(filterPanel, ID_FilterSystem, _T("⚙️ Системные"));
-    m_btnSystem->SetBackgroundColour(wxColour(0, 120, 215));
+    m_btnSystem->SetBackgroundColour(m_btnNormalColor);
     m_btnSystem->SetForegroundColour(*wxWHITE);
+    filterSizer->Add(m_btnSystem, 0, wxRIGHT, 8);
 
-    filterSizer->Add(m_btnAll, 0, wxRIGHT, 5);
-    filterSizer->Add(m_btnAuth, 0, wxRIGHT, 5);
-    filterSizer->Add(m_btnDenied, 0, wxRIGHT, 5);
-    filterSizer->Add(m_btnUnknown, 0, wxRIGHT, 5);
-    filterSizer->Add(m_btnSystem, 0, wxRIGHT, 5);
+    filterSizer->AddStretchSpacer();
+
+    m_btnClear = new wxButton(filterPanel, ID_FilterClear, _T("🗑️ Сбросить всё"));
+    m_btnClear->SetBackgroundColour(wxColour(100, 60, 60));
+    m_btnClear->SetForegroundColour(*wxWHITE);
+    filterSizer->Add(m_btnClear, 0, wxRIGHT, 0);
 
     filterPanel->SetSizer(filterSizer);
-    mainSizer->Add(filterPanel, 0, wxEXPAND | wxALL, 5);
+    mainSizer->Add(filterPanel, 0, wxEXPAND | wxALL, 8);
 
-    // ========== ПАНЕЛЬ ФИЛЬТРАЦИИ ПО ВРЕМЕНИ ==========
+    // ========== ПАНЕЛЬ ВРЕМЕННОГО ФИЛЬТРА ==========
     wxPanel* timePanel = new wxPanel(this);
-    timePanel->SetBackgroundColour(wxColour(40, 40, 50));
+    timePanel->SetBackgroundColour(wxColour(38, 38, 48));
 
-    wxBoxSizer* timeSizer = new wxBoxSizer(wxHORIZONTAL);
+    wxBoxSizer* timeSizer = new wxBoxSizer(wxVERTICAL);
 
-    m_enableTimeFilter = new wxCheckBox(timePanel, wxID_ANY, _T("Фильтр по времени"));
+    // Включение фильтра
+    wxBoxSizer* enableSizer = new wxBoxSizer(wxHORIZONTAL);
+    m_enableTimeFilter = new wxCheckBox(timePanel, ID_TimeFilterEnable, _T("⏰ Фильтр по времени"));
     m_enableTimeFilter->SetForegroundColour(*wxWHITE);
-    timeSizer->Add(m_enableTimeFilter, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    m_enableTimeFilter->SetBackgroundColour(wxColour(38, 38, 48));
+    enableSizer->Add(m_enableTimeFilter, 0, wxALIGN_CENTER_VERTICAL);
+    timeSizer->Add(enableSizer, 0, wxLEFT | wxTOP | wxBOTTOM, 8);
 
-    timeSizer->Add(new wxStaticText(timePanel, wxID_ANY, _T("От:")), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
+    // Ползунки для времени
+    wxStaticText* timeRangeLabel = new wxStaticText(timePanel, wxID_ANY, _T("Интервал времени:"));
+    timeRangeLabel->SetForegroundColour(wxColour(180, 180, 200));
+    timeSizer->Add(timeRangeLabel, 0, wxLEFT | wxRIGHT, 8);
 
-    m_timeFrom = new wxTimePickerCtrl(timePanel, wxID_ANY, wxDateTime::Now().SetHour(0).SetMinute(0).SetSecond(0));
-    timeSizer->Add(m_timeFrom, 0, wxRIGHT, 10);
+    wxBoxSizer* sliderSizer = new wxBoxSizer(wxHORIZONTAL);
 
-    timeSizer->Add(new wxStaticText(timePanel, wxID_ANY, _T("До:")), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
+    m_labelFrom = new wxStaticText(timePanel, wxID_ANY, _T("00:00"));
+    m_labelFrom->SetForegroundColour(*wxWHITE);
+    m_labelFrom->SetFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
+    sliderSizer->Add(m_labelFrom, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
 
-    m_timeTo = new wxTimePickerCtrl(timePanel, wxID_ANY, wxDateTime::Now().SetHour(23).SetMinute(59).SetSecond(59));
-    timeSizer->Add(m_timeTo, 0, wxRIGHT, 10);
+    m_sliderFrom = new wxSlider(timePanel, ID_SliderFrom, 0, 0, 1440, wxDefaultPosition, wxSize(200, 25));
+    sliderSizer->Add(m_sliderFrom, 1, wxEXPAND | wxRIGHT, 8);
 
-    wxButton* applyBtn = new wxButton(timePanel, ID_TimeFilterApply, _T("Применить"));
-    applyBtn->SetBackgroundColour(wxColour(0, 120, 215));
-    applyBtn->SetForegroundColour(*wxWHITE);
-    timeSizer->Add(applyBtn, 0, wxRIGHT, 5);
+    m_labelTo = new wxStaticText(timePanel, wxID_ANY, _T("23:59"));
+    m_labelTo->SetForegroundColour(*wxWHITE);
+    m_labelTo->SetFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
+    sliderSizer->Add(m_labelTo, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
 
-    wxButton* clearBtn = new wxButton(timePanel, ID_TimeFilterClear, _T("Сбросить"));
-    clearBtn->SetBackgroundColour(wxColour(100, 100, 110));
-    clearBtn->SetForegroundColour(*wxWHITE);
-    timeSizer->Add(clearBtn, 0, wxRIGHT, 5);
+    m_sliderTo = new wxSlider(timePanel, ID_SliderTo, 1440, 0, 1440, wxDefaultPosition, wxSize(200, 25));
+    sliderSizer->Add(m_sliderTo, 1, wxEXPAND);
 
+    timeSizer->Add(sliderSizer, 0, wxEXPAND | wxLEFT | wxRIGHT, 8);
+
+    // Статус фильтра
     m_timeFilterStatus = new wxStaticText(timePanel, wxID_ANY, _T(""));
-    m_timeFilterStatus->SetForegroundColour(wxColour(0, 180, 0));
-    timeSizer->Add(m_timeFilterStatus, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
+    m_timeFilterStatus->SetForegroundColour(wxColour(100, 200, 100));
+    m_timeFilterStatus->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
+    timeSizer->Add(m_timeFilterStatus, 0, wxALIGN_CENTER | wxTOP | wxBOTTOM, 5);
 
     timePanel->SetSizer(timeSizer);
-    mainSizer->Add(timePanel, 0, wxEXPAND | wxALL, 5);
+    mainSizer->Add(timePanel, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 8);
 
     // ========== ТАБЛИЦА ==========
     m_listCtrl = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxLC_REPORT | wxLC_HRULES | wxLC_VRULES);
-    m_listCtrl->SetBackgroundColour(wxColour(45, 45, 55));
+    m_listCtrl->SetBackgroundColour(wxColour(40, 40, 50));
     m_listCtrl->SetForegroundColour(*wxWHITE);
 
     SetupColumns();
-    mainSizer->Add(m_listCtrl, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
+    mainSizer->Add(m_listCtrl, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 8);
 
     SetSizer(mainSizer);
+
+    // Устанавливаем начальные значения ползунков
+    m_sliderFrom->SetValue(0);
+    m_sliderTo->SetValue(1440);
+    UpdateTimeLabels();
 
     // Тестовые данные
     AddLog(_T("15:47:32"), _T("Иванов П."), _T("Камера 1"), _T("РАЗРЕШЕН"), _T("98.5%"), 0);
@@ -133,6 +158,10 @@ LogPanel::LogPanel(wxWindow* parent)
     AddLog(_T("15:41:08"), _T("Кузнецов Д."), _T("Камера 2"), _T("РАЗРЕШЕН"), _T("99.1%"), 0);
     AddLog(_T("15:40:02"), _T("СИСТЕМА"), _T("Камера 4"), _T("ПОДКЛЮЧЕНА"), _T("OK"), 3);
     AddLog(_T("15:39:30"), _T("Васильев И."), _T("Камера 1"), _T("ЗАПРЕЩЕН"), _T("Черный список"), 1);
+    AddLog(_T("08:30:15"), _T("Утренний проход"), _T("Камера 1"), _T("РАЗРЕШЕН"), _T("96.3%"), 0);
+    AddLog(_T("22:15:45"), _T("Вечерний проход"), _T("Камера 2"), _T("РАЗРЕШЕН"), _T("94.1%"), 0);
+
+    UpdateDisplay();
 }
 
 LogPanel::~LogPanel() {}
@@ -143,6 +172,25 @@ void LogPanel::SetupColumns() {
     m_listCtrl->AppendColumn(_T("Камера"), wxLIST_FORMAT_LEFT, 100);
     m_listCtrl->AppendColumn(_T("Результат"), wxLIST_FORMAT_LEFT, 100);
     m_listCtrl->AppendColumn(_T("Детали"), wxLIST_FORMAT_LEFT, 150);
+}
+
+void LogPanel::SetStatusText(const wxString& text) {
+    // Можно передать родительскому окну, или просто сохранить
+    // Пока просто выводим в консоль для отладки
+    wxPrintf(_T("Статус: %s\n"), text);
+}
+
+void LogPanel::UpdateTimeLabels() {
+    int fromMin = m_sliderFrom->GetValue();
+    int toMin = m_sliderTo->GetValue();
+
+    int fromHour = fromMin / 60;
+    int fromMinute = fromMin % 60;
+    int toHour = toMin / 60;
+    int toMinute = toMin % 60;
+
+    m_labelFrom->SetLabel(wxString::Format(_T("%02d:%02d"), fromHour, fromMinute));
+    m_labelTo->SetLabel(wxString::Format(_T("%02d:%02d"), toHour, toMinute));
 }
 
 void LogPanel::AddLog(const wxString& time, const wxString& name,
@@ -156,7 +204,6 @@ void LogPanel::AddLog(const wxString& time, const wxString& name,
     entry.details = details;
     entry.type = type;
 
-    // Вычисляем timestamp для сортировки
     long hour = 0, minute = 0, second = 0;
     if (time.Len() >= 8) {
         hour = wxAtoi(time.Mid(0, 2));
@@ -167,7 +214,6 @@ void LogPanel::AddLog(const wxString& time, const wxString& name,
 
     m_allLogs.push_back(entry);
 
-    // Сортируем по времени (новые сверху)
     std::sort(m_allLogs.begin(), m_allLogs.end(),
         [](const LogEntry& a, const LogEntry& b) {
             return a.timestamp > b.timestamp;
@@ -177,28 +223,37 @@ void LogPanel::AddLog(const wxString& time, const wxString& name,
 }
 
 bool LogPanel::ShouldShowLog(const LogEntry& log) {
-    // Проверка фильтра по типу
-    if (!m_activeFilters.empty()) {
-        bool typeMatch = false;
-        for (int filter : m_activeFilters) {
-            if (filter == -1 || log.type == filter) {
-                typeMatch = true;
-                break;
-            }
-        }
-        if (!typeMatch) return false;
+    // Фильтр по типу
+    bool typeMatch = false;
+    if (m_filterAuth && log.type == 0) typeMatch = true;
+    if (m_filterDenied && log.type == 1) typeMatch = true;
+    if (m_filterUnknown && log.type == 2) typeMatch = true;
+    if (m_filterSystem && log.type == 3) typeMatch = true;
+
+    // Если нет активных фильтров - показываем всё
+    if (!m_filterAuth && !m_filterDenied && !m_filterUnknown && !m_filterSystem) {
+        typeMatch = true;
     }
 
-    // Проверка фильтра по времени
+    if (!typeMatch) return false;
+
+    // Фильтр по времени
     if (m_timeFilterEnabled) {
-        wxDateTime from = m_timeFrom->GetValue();
-        wxDateTime to = m_timeTo->GetValue();
+        int fromMinutes = m_sliderFrom->GetValue();
+        int toMinutes = m_sliderTo->GetValue();
 
-        long fromSec = from.GetHour() * 3600 + from.GetMinute() * 60 + from.GetSecond();
-        long toSec = to.GetHour() * 3600 + to.GetMinute() * 60 + to.GetSecond();
+        int logMinutes = (log.timestamp / 60);
 
-        if (log.timestamp < fromSec || log.timestamp > toSec) {
-            return false;
+        if (fromMinutes <= toMinutes) {
+            if (logMinutes < fromMinutes || logMinutes > toMinutes) {
+                return false;
+            }
+        }
+        else {
+            // Переход через полночь
+            if (logMinutes < fromMinutes && logMinutes > toMinutes) {
+                return false;
+            }
         }
     }
 
@@ -208,8 +263,10 @@ bool LogPanel::ShouldShowLog(const LogEntry& log) {
 void LogPanel::UpdateDisplay() {
     m_listCtrl->DeleteAllItems();
 
+    int count = 0;
     for (const auto& log : m_allLogs) {
         if (ShouldShowLog(log)) {
+            count++;
             long idx = m_listCtrl->InsertItem(m_listCtrl->GetItemCount(), log.time);
             m_listCtrl->SetItem(idx, 1, log.name);
             m_listCtrl->SetItem(idx, 2, log.camera);
@@ -222,101 +279,95 @@ void LogPanel::UpdateDisplay() {
             else m_listCtrl->SetItemTextColour(idx, m_infoColor);
         }
     }
+
+    // Обновляем статус
+    SetStatusText(wxString::Format(_T("Показано событий: %d / %d"), count, (int)m_allLogs.size()));
 }
 
 void LogPanel::OnFilterClick(wxCommandEvent& event) {
     int id = event.GetId();
 
-    if (id == ID_FilterAll) {
-        // Кнопка "Все" - очищаем все фильтры
-        m_activeFilters.clear();
-        m_activeFilters.push_back(-1);
-
-        // Сбрасываем подсветку всех кнопок
-        m_btnAll->SetBackgroundColour(wxColour(0, 120, 215));
-        m_btnAuth->SetBackgroundColour(wxColour(0, 120, 215));
-        m_btnDenied->SetBackgroundColour(wxColour(0, 120, 215));
-        m_btnUnknown->SetBackgroundColour(wxColour(0, 120, 215));
-        m_btnSystem->SetBackgroundColour(wxColour(0, 120, 215));
-
-        m_btnAll->SetBackgroundColour(wxColour(0, 80, 150));
+    if (id == ID_FilterAuth) {
+        m_filterAuth = !m_filterAuth;
+        m_btnAuth->SetBackgroundColour(m_filterAuth ? m_btnActiveColor : m_btnNormalColor);
     }
-    else {
-        // Убираем фильтр "Все" если он был
-        auto it = std::find(m_activeFilters.begin(), m_activeFilters.end(), -1);
-        if (it != m_activeFilters.end()) {
-            m_activeFilters.erase(it);
-            m_btnAll->SetBackgroundColour(wxColour(0, 120, 215));
-        }
-
-        int filterType = -1;
-        wxButton* btn = nullptr;
-
-        if (id == ID_FilterAuth) { filterType = 0; btn = m_btnAuth; }
-        else if (id == ID_FilterDenied) { filterType = 1; btn = m_btnDenied; }
-        else if (id == ID_FilterUnknown) { filterType = 2; btn = m_btnUnknown; }
-        else if (id == ID_FilterSystem) { filterType = 3; btn = m_btnSystem; }
-
-        // Проверяем есть ли уже этот фильтр
-        auto found = std::find(m_activeFilters.begin(), m_activeFilters.end(), filterType);
-        if (found != m_activeFilters.end()) {
-            // Убираем фильтр
-            m_activeFilters.erase(found);
-            btn->SetBackgroundColour(wxColour(0, 120, 215));
-        }
-        else {
-            // Добавляем фильтр
-            m_activeFilters.push_back(filterType);
-            btn->SetBackgroundColour(wxColour(0, 80, 150));
-        }
-
-        // Если фильтров не осталось - показываем всё
-        if (m_activeFilters.empty()) {
-            m_activeFilters.push_back(-1);
-            m_btnAll->SetBackgroundColour(wxColour(0, 80, 150));
-        }
+    else if (id == ID_FilterDenied) {
+        m_filterDenied = !m_filterDenied;
+        m_btnDenied->SetBackgroundColour(m_filterDenied ? m_btnActiveColor : m_btnNormalColor);
     }
+    else if (id == ID_FilterUnknown) {
+        m_filterUnknown = !m_filterUnknown;
+        m_btnUnknown->SetBackgroundColour(m_filterUnknown ? m_btnActiveColor : m_btnNormalColor);
+    }
+    else if (id == ID_FilterSystem) {
+        m_filterSystem = !m_filterSystem;
+        m_btnSystem->SetBackgroundColour(m_filterSystem ? m_btnActiveColor : m_btnNormalColor);
+    }
+    else if (id == ID_FilterClear) {
+        // Сброс всех фильтров
+        m_filterAuth = false;
+        m_filterDenied = false;
+        m_filterUnknown = false;
+        m_filterSystem = false;
 
-    UpdateDisplay();
-}
+        m_btnAuth->SetBackgroundColour(m_btnNormalColor);
+        m_btnDenied->SetBackgroundColour(m_btnNormalColor);
+        m_btnUnknown->SetBackgroundColour(m_btnNormalColor);
+        m_btnSystem->SetBackgroundColour(m_btnNormalColor);
 
-void LogPanel::OnTimeFilterApply(wxCommandEvent& event) {
-    if (!m_enableTimeFilter->IsChecked()) {
+        m_enableTimeFilter->SetValue(false);
         m_timeFilterEnabled = false;
         m_timeFilterStatus->SetLabel(_T(""));
-        UpdateDisplay();
-        return;
+        m_sliderFrom->SetValue(0);
+        m_sliderTo->SetValue(1440);
+        UpdateTimeLabels();
     }
-
-    wxDateTime from = m_timeFrom->GetValue();
-    wxDateTime to = m_timeTo->GetValue();
-
-    if (from > to) {
-        wxMessageBox(_T("Время 'От' должно быть меньше времени 'До'"),
-            _T("Ошибка"), wxOK | wxICON_WARNING);
-        return;
-    }
-
-    m_timeFilterEnabled = true;
-    wxString status = wxString::Format(_T("Фильтр: %02d:%02d - %02d:%02d"),
-        from.GetHour(), from.GetMinute(),
-        to.GetHour(), to.GetMinute());
-    m_timeFilterStatus->SetLabel(status);
 
     UpdateDisplay();
 }
 
-void LogPanel::OnTimeFilterClear(wxCommandEvent& event) {
-    m_enableTimeFilter->SetValue(false);
-    m_timeFilterEnabled = false;
-    m_timeFilterStatus->SetLabel(_T(""));
+void LogPanel::OnTimeSliderChanged(wxCommandEvent& event) {
+    if (event.GetId() == ID_TimeFilterEnable) {
+        m_timeFilterEnabled = m_enableTimeFilter->IsChecked();
+    }
+
+    // Ограничение: from не может быть больше to
+    int from = m_sliderFrom->GetValue();
+    int to = m_sliderTo->GetValue();
+
+    if (from > to) {
+        if (event.GetId() == ID_SliderFrom) {
+            m_sliderTo->SetValue(from);
+        }
+        else if (event.GetId() == ID_SliderTo) {
+            m_sliderFrom->SetValue(to);
+        }
+    }
+
+    UpdateTimeLabels();
+
+    if (m_timeFilterEnabled) {
+        int fromMin = m_sliderFrom->GetValue();
+        int toMin = m_sliderTo->GetValue();
+        int fromHour = fromMin / 60;
+        int fromMinute = fromMin % 60;
+        int toHour = toMin / 60;
+        int toMinute = toMin % 60;
+
+        wxString status = wxString::Format(_T("⏰ Фильтр активен: %02d:%02d - %02d:%02d"),
+            fromHour, fromMinute, toHour, toMinute);
+        m_timeFilterStatus->SetLabel(status);
+    }
+    else {
+        m_timeFilterStatus->SetLabel(_T(""));
+    }
+
     UpdateDisplay();
 }
 
 void LogPanel::OnColumnClick(wxListEvent& event) {
     int col = event.GetColumn();
 
-    // Сортировка по выбранной колонке
     std::sort(m_allLogs.begin(), m_allLogs.end(),
         [col](const LogEntry& a, const LogEntry& b) {
             if (col == 0) return a.timestamp > b.timestamp;

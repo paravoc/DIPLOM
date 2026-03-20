@@ -1,12 +1,12 @@
 #pragma once
 #include <wx/wx.h>
 #include <wx/listctrl.h>
-#include <wx/timectrl.h>
+#include <wx/slider.h>
 #include <vector>
 
 struct LogEntry {
     wxString time;
-    long timestamp; // для сортировки
+    long timestamp;
     wxString name;
     wxString camera;
     wxString result;
@@ -30,41 +30,48 @@ public:
     int GetUnknownCount() const;
     int GetSystemCount() const;
 
-    // Получить текущие фильтры
-    std::vector<int> GetActiveFilters() const { return m_activeFilters; }
-
 private:
     void OnColumnClick(wxListEvent& event);
     void OnFilterClick(wxCommandEvent& event);
-    void OnTimeFilterApply(wxCommandEvent& event);
-    void OnTimeFilterClear(wxCommandEvent& event);
+    void OnTimeSliderChanged(wxCommandEvent& event);
     void SetupColumns();
     bool ShouldShowLog(const LogEntry& log);
+    void UpdateTimeLabels();
+    void SetStatusText(const wxString& text);
 
     wxListCtrl* m_listCtrl;
     std::vector<LogEntry> m_allLogs;
 
-    // Множественные фильтры
-    std::vector<int> m_activeFilters; // -1 означает "Все"
+    // Фильтры по типу
+    bool m_filterAuth;
+    bool m_filterDenied;
+    bool m_filterUnknown;
+    bool m_filterSystem;
 
-    // Фильтр по времени
-    wxTimePickerCtrl* m_timeFrom;
-    wxTimePickerCtrl* m_timeTo;
+    // Фильтр по времени (ползунки)
+    wxSlider* m_sliderFrom;
+    wxSlider* m_sliderTo;
+    wxStaticText* m_labelFrom;
+    wxStaticText* m_labelTo;
     wxCheckBox* m_enableTimeFilter;
-    wxStaticText* m_timeFilterStatus;
+    wxStaticText* m_timeFilterStatus;  // <-- ДОБАВЛЯЕМ
     bool m_timeFilterEnabled;
 
     // Кнопки фильтров
-    wxButton* m_btnAll;
     wxButton* m_btnAuth;
     wxButton* m_btnDenied;
     wxButton* m_btnUnknown;
     wxButton* m_btnSystem;
+    wxButton* m_btnClear;
 
+    // Цвета
     wxColour m_successColor;
     wxColour m_errorColor;
     wxColour m_warningColor;
     wxColour m_infoColor;
+    wxColour m_btnActiveColor;
+    wxColour m_btnNormalColor;
+    wxColour m_btnHoverColor;
 
     wxDECLARE_EVENT_TABLE();
 };
