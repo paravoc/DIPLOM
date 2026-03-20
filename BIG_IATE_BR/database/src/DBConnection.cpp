@@ -1,13 +1,22 @@
-// database/include/DBConnection.h
 #pragma once
 
 #include <string>
 #include <expected>
+#include <memory>
 #include <libpq-fe.h>
+
 #include "../../configs/include/types.h"
 
 namespace bigiate::db {
 
+    // Результат подключения
+    struct DBConnectionResult {
+        PGconn* conn = nullptr;
+        bool success = false;
+        std::string error;
+    };
+
+    // Класс управления подключением к БД
     class DBConnection {
     public:
         DBConnection();
@@ -22,8 +31,7 @@ namespace bigiate::db {
         DBConnection& operator=(DBConnection&& other) noexcept;
 
         // Инициализация из конфига
-        [[nodiscard]] std::expected<void, std::string> init(const config::DatabaseConfig& cfg,
-            const std::string& password);
+        [[nodiscard]] std::expected<void, std::string> init(const config::DatabaseConfig& cfg);
 
         // Закрытие соединения
         void close();
@@ -31,20 +39,21 @@ namespace bigiate::db {
         // Проверка соединения
         [[nodiscard]] bool isConnected() const;
 
-        // Получение сырого указателя
+        // Получение сырого указателя (для низкоуровневых операций)
         [[nodiscard]] PGconn* get() const { return m_conn; }
 
-        // Выполнение запроса без возврата
+        // Выполнение запроса без возврата данных
         [[nodiscard]] std::expected<void, std::string> execute(const std::string& query);
 
-        // Выполнение запроса с возвратом
+        // Выполнение запроса с возвратом результата
         [[nodiscard]] std::expected<PGresult*, std::string> query(const std::string& query);
 
-    private:
-        static std::string makeConnectionString(const config::DatabaseConfig& cfg,
-            const std::string& password);
+        // Формирование строки подключения
+        [[nodiscard]] static std::string makeConnectionString(const config::DatabaseConfig& cfg);
 
+    private:
         PGconn* m_conn = nullptr;
+        config::DatabaseConfig m_config;
     };
 
 } // namespace bigiate::db

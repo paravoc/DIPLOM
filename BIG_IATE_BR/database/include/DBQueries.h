@@ -1,35 +1,72 @@
+// database/include/DBQueries.h
 #pragma once
+
 #include <expected>
 #include <vector>
-#include"../../configs/include/types.h"
+#include <memory>
 #include "DBModels.h"
+#include "DBThreadSafe.h"
 
 namespace bigiate::db {
 
     class DBQueries {
     public:
-        static std::expected<void, std::string> init(const DatabaseConfig& cfg);
-        static void close();
+        explicit DBQueries(std::shared_ptr<DBConnectionPool> pool);
+        ~DBQueries() = default;
 
-        // Люди
-        static std::expected<std::vector<Person>, std::string> getAllPersons();
-        static std::expected<Person, std::string> getPersonById(int id);
-        static std::expected<int, std::string> addPerson(const Person& person);
-        static std::expected<void, std::string> updatePerson(int id, const Person& person);
+        // ========== ЛЮДИ ==========
+        [[nodiscard]] std::expected<std::vector<Person>, std::string> getAllPersons(bool onlyActive = true);
+        [[nodiscard]] std::expected<Person, std::string> getPersonById(int id);
+        [[nodiscard]] std::expected<int, std::string> addPerson(const Person& person);
+        [[nodiscard]] std::expected<void, std::string> updatePerson(const Person& person);
+        [[nodiscard]] std::expected<void, std::string> blockPerson(int id, const std::string& reason, const std::string& until = "");
+        [[nodiscard]] std::expected<void, std::string> unblockPerson(int id);
 
-        // Эмбеддинги
-        static std::expected<std::vector<FaceEncoding>, std::string> getFaceEncodings(int personId);
-        static std::expected<void, std::string> addFaceEncoding(const FaceEncoding& encoding);
-        static std::expected<void, std::string> markEncodingInactive(int id);
+        // ========== ЭМБЕДДИНГИ ==========
+        [[nodiscard]] std::expected<int, std::string> addFaceEncoding(const FaceEncoding& encoding);
+        [[nodiscard]] std::expected<std::vector<FaceEncoding>, std::string> getFaceEncodingsByPerson(int personId);
+        [[nodiscard]] std::expected<void, std::string> setPrimaryEncoding(int personId, int encodingId);
+        [[nodiscard]] std::expected<void, std::string> markEncodingObsolete(int personId);
 
-        // Поиск
-        static std::expected<std::vector<RecognitionResult>, std::string>
-            findPersonByEmbedding(const std::vector<float>& embedding, float threshold = 0.75f);
+        // ========== ПОИСК (PGVECTOR) ==========
+        [[nodiscard]] std::expected<std::vector<MatchResult>, std::string> findPersonByEmbedding(
+            const std::vector<float>& embedding,
+            float threshold = 0.75f,
+            int limit = 5
+        );
 
-        // Журнал
-        static std::expected<long, std::string> addAccessLog(const AccessLog& log);
-        static std::expected<std::vector<AccessLog>, std::string> getRecentLogs(int limit = 100);
-        static std::expected<std::vector<AccessLog>, std::string> getLogsByPerson(int personId, int limit = 100);
+        // ========== ЖУРНАЛ ==========
+        [[nodiscard]] std::expected<long, std::string> addAccessLog(const AccessLog& log);
+        [[nodiscard]] std::expected<std::vector<AccessLog>, std::string> getRecentLogs(int limit = 100);
+        [[nodiscard]] std::expected<std::vector<AccessLog>, std::string> getLogsByPerson(int personId, int limit = 100);
+
+        // ========== СТАТИСТИКА ==========
+        struct Stats {
+            int totalPersons = 0;
+            int activePersons = 0;
+            int blockedPersons = 0;
+            int totalAccessToday = 0;
+            int grantedToday = 0;
+            int deniedToday = 0;
+        };
+        [[nodiscard]] std::expected<Stats, std::string> getStats();
+
+        // ========== ТЕСТ ==========
+        [[nodiscard]] std::expected<void, std::string> testConnection();
+
+    private:
+        std::shared_ptr<ThreadSafeExecutor> m_executor;
+
+        // Парсеры
+        Person parsePerson(PGresult* res, int row);
+        FaceEncoding parseFaceEncoding(PGresult* res, int row);
+        AccessLog parseAccessLog(PGresult* res, int row);
+        MatchResult parseMatchResult(PGresult* res, int row);
+
+        // Вспомогательные
+        std::string vectorToString(const std::vector<float>& vec);
+        std::vector<float> stringToVector(const std::string& str);
+        std::string escapeString(const std::string& str);
     };
 
 } // namespace bigiate::db

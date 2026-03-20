@@ -134,6 +134,12 @@
     <ClCompile Include="BIG_IATE_BR.cpp" />
     <ClCompile Include="configs\src\loader.cpp" />
     <ClCompile Include="configs\src\print_config_utils.cpp" />
+    <ClCompile Include="database\src\DBConnection.cpp" />
+    <ClCompile Include="database\src\DBConnectionPool.cpp" />
+    <ClCompile Include="database\src\DBMacros.cpp" />
+    <ClCompile Include="database\src\DBModels.cpp" />
+    <ClCompile Include="database\src\DBQueries.cpp" />
+    <ClCompile Include="database\src\DBThreadSafe.cpp" />
     <ClCompile Include="main_gui.cpp" />
     <ClCompile Include="ui\src\CaneraPanel.cpp" />
     <ClCompile Include="ui\src\StatsPanel.cpp" />
@@ -151,6 +157,12 @@
     <ClInclude Include="configs\include\print_config_utils.h" />
     <ClInclude Include="configs\include\types.h" />
     <ClInclude Include="configs\include\macros.h" />
+    <ClInclude Include="database\include\DBConnection.h" />
+    <ClInclude Include="database\include\DBConnectionPool.h" />
+    <ClInclude Include="database\include\DBMacros.h" />
+    <ClInclude Include="database\include\DBModels.h" />
+    <ClInclude Include="database\include\DBQueries.h" />
+    <ClInclude Include="database\include\DBThreadSafe.h" />
     <ClInclude Include="ui\include\CaneraPanel.h" />
     <ClInclude Include="ui\include\LoginDialog.h" />
     <ClInclude Include="ui\include\LogPanel.h" />
