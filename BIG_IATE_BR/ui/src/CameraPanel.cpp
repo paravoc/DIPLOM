@@ -56,8 +56,7 @@ namespace bigiate::ui {
     // СОЗДАНИЕ КАМЕР
     // ============================================================
 
-    std::expected<void, wxString> CameraPanel::createCameras(std::span<const config::CameraConfig> cameras) {
-        clearCameras();
+    std::expected<void, wxString> CameraPanel::createCameras(const std::vector<config::CameraConfig>& cameras){        clearCameras();
 
         // Фильтруем только включённые камеры
         std::vector<config::CameraConfig> enabledCameras;

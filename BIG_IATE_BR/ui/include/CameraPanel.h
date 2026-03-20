@@ -32,7 +32,7 @@ namespace bigiate::ui {
         CameraPanel(const CameraPanel&) = delete;
         CameraPanel& operator=(const CameraPanel&) = delete;
 
-        [[nodiscard]] std::expected<void, wxString> createCameras(std::span<const config::CameraConfig> cameras);
+        [[nodiscard]] std::expected<void, wxString> createCameras(const std::vector<config::CameraConfig>& cameras);
 
         void updateCameraStatus(int cameraId, bool online);
         void updateCameraFrame(int cameraId, const wxImage& frame);
