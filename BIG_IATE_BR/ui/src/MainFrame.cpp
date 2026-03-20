@@ -1,8 +1,8 @@
 #include "../include/MainFrame.h"
-#include "../include/CaneraPanel.h"
+#include "../include/CameraPanel.h"
 #include "../include/LogPanel.h"
 #include "../include/StatsPanel.h"
- 
+#include <iostream>
 
 #define _T(str) wxString::FromUTF8(str)
 
@@ -12,9 +12,9 @@ EVT_CLOSE(MainFrame::OnClose)
 EVT_TIMER(wxID_ANY, MainFrame::OnUpdateTime)
 wxEND_EVENT_TABLE()
 
-MainFrame::MainFrame() : wxFrame(nullptr, wxID_ANY, _T("BIG IATE - Система контроля доступа"),
-    
-    wxDefaultPosition, wxSize(1400, 800)) {
+MainFrame::MainFrame()
+    : wxFrame(nullptr, wxID_ANY, _T("BIG IATE - Система контроля доступа"),
+        wxDefaultPosition, wxSize(1400, 800)) {
     std::cout << "🔧 MainFrame конструктор НАЧАЛ" << std::endl;
     SetBackgroundColour(wxColour(25, 25, 35));
     SetupUI();
@@ -27,11 +27,16 @@ MainFrame::MainFrame() : wxFrame(nullptr, wxID_ANY, _T("BIG IATE - Систем�
 }
 
 MainFrame::~MainFrame() {
-    if (m_timer) m_timer->Stop();
+    if (m_timer) {
+        m_timer->Stop();
+        delete m_timer;
+        m_timer = nullptr;
+    }
 }
 
 void MainFrame::SetupUI() {
-    std::cout << "📐 SetupModernUI начат" << std::endl;
+    std::cout << "📐 SetupUI начат" << std::endl;
+
     // Меню
     wxMenuBar* menuBar = new wxMenuBar();
     wxMenu* fileMenu = new wxMenu();
@@ -50,7 +55,7 @@ void MainFrame::SetupUI() {
     m_splitter->SetSashGravity(0.6);
 
     // Левая панель - камеры
-    m_cameraPanel = new CameraPanel(m_splitter);
+    m_cameraPanel = new bigiate::ui::CameraPanel(m_splitter);
 
     // Правая панель
     wxPanel* rightPanel = new wxPanel(m_splitter);
@@ -77,7 +82,7 @@ void MainFrame::SetupUI() {
     SetSizer(mainSizer);
 
     UpdateStats();
-    std::cout << "📐 SetupModernUI завершён" << std::endl;
+    std::cout << "📐 SetupUI завершён" << std::endl;
 }
 
 void MainFrame::UpdateStats() {

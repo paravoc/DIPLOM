@@ -141,7 +141,7 @@
     <ClCompile Include="database\src\DBQueries.cpp" />
     <ClCompile Include="database\src\DBThreadSafe.cpp" />
     <ClCompile Include="main_gui.cpp" />
-    <ClCompile Include="ui\src\CaneraPanel.cpp" />
+    <ClCompile Include="ui\src\CameraPanel.cpp" />
     <ClCompile Include="ui\src\StatsPanel.cpp" />
     <ClCompile Include="ui\src\LogPanel.cpp" />
     <ClCompile Include="ui\src\MainFrame.cpp" />
@@ -163,7 +163,7 @@
     <ClInclude Include="database\include\DBModels.h" />
     <ClInclude Include="database\include\DBQueries.h" />
     <ClInclude Include="database\include\DBThreadSafe.h" />
-    <ClInclude Include="ui\include\CaneraPanel.h" />
+    <ClInclude Include="ui\include\CameraPanel.h" />
     <ClInclude Include="ui\include\LoginDialog.h" />
     <ClInclude Include="ui\include\LogPanel.h" />
     <ClInclude Include="ui\include\MainFrame.h" />

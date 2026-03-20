@@ -1,9 +1,13 @@
 #pragma once
+
 #include <wx/wx.h>
 #include <wx/splitter.h>
 #include <wx/timer.h>
 
-class CameraPanel;
+// Forward declarations
+namespace bigiate::ui {
+    class CameraPanel;
+}
 class LogPanel;
 class StatsPanel;
 
@@ -20,7 +24,7 @@ private:
     void UpdateStats();
 
     wxSplitterWindow* m_splitter;
-    CameraPanel* m_cameraPanel;
+    bigiate::ui::CameraPanel* m_cameraPanel;  // ← полное имя с пространством имён
     LogPanel* m_logPanel;
     StatsPanel* m_statsPanel;
     wxTimer* m_timer;
