@@ -3,6 +3,11 @@
 #include <wx/wx.h>
 #include <wx/splitter.h>
 #include <wx/timer.h>
+#include <vector>
+#include <string>
+
+// Подключаем типы из конфига
+#include "../../configs/include/types.h"
 
 // Forward declarations
 namespace bigiate::ui {
@@ -16,6 +21,10 @@ public:
     MainFrame();
     virtual ~MainFrame();
 
+    // Публичные методы для внешнего использования
+    void SetCameras(const std::vector<bigiate::config::CameraConfig>& cameras);
+    void UpdateCameraFrame(int cameraId, const wxImage& frame);
+
 private:
     void OnExit(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
@@ -24,7 +33,7 @@ private:
     void UpdateStats();
 
     wxSplitterWindow* m_splitter;
-    bigiate::ui::CameraPanel* m_cameraPanel;  // ← полное имя с пространством имён
+    bigiate::ui::CameraPanel* m_cameraPanel;
     LogPanel* m_logPanel;
     StatsPanel* m_statsPanel;
     wxTimer* m_timer;

@@ -113,3 +113,21 @@ void MainFrame::OnClose(wxCloseEvent& event) {
         event.Veto();
     }
 }
+
+void MainFrame::SetCameras(const std::vector<bigiate::config::CameraConfig>& cameras) {
+    if (m_cameraPanel) {
+        auto result = m_cameraPanel->createCameras(cameras);
+        if (!result.has_value()) {
+            std::cerr << "❌ Ошибка создания камер: " << result.error() << std::endl;
+        }
+        else {
+            std::cout << "✅ Камеры созданы: " << m_cameraPanel->getCameraCount() << std::endl;
+        }
+    }
+}
+
+void MainFrame::UpdateCameraFrame(int cameraId, const wxImage& frame) {
+    if (m_cameraPanel) {
+        m_cameraPanel->updateCameraFrame(cameraId, frame);
+    }
+}
