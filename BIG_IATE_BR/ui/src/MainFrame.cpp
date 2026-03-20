@@ -13,7 +13,9 @@ EVT_TIMER(wxID_ANY, MainFrame::OnUpdateTime)
 wxEND_EVENT_TABLE()
 
 MainFrame::MainFrame() : wxFrame(nullptr, wxID_ANY, _T("BIG IATE - Система контроля доступа"),
+    
     wxDefaultPosition, wxSize(1400, 800)) {
+    std::cout << "🔧 MainFrame конструктор НАЧАЛ" << std::endl;
     SetBackgroundColour(wxColour(25, 25, 35));
     SetupUI();
 
@@ -21,6 +23,7 @@ MainFrame::MainFrame() : wxFrame(nullptr, wxID_ANY, _T("BIG IATE - Систем�
     m_timer->Start(1000);
 
     Centre();
+    std::cout << "🔧 MainFrame конструктор ЗАВЕРШЁН" << std::endl;
 }
 
 MainFrame::~MainFrame() {
@@ -28,6 +31,7 @@ MainFrame::~MainFrame() {
 }
 
 void MainFrame::SetupUI() {
+    std::cout << "📐 SetupModernUI начат" << std::endl;
     // Меню
     wxMenuBar* menuBar = new wxMenuBar();
     wxMenu* fileMenu = new wxMenu();
@@ -73,6 +77,7 @@ void MainFrame::SetupUI() {
     SetSizer(mainSizer);
 
     UpdateStats();
+    std::cout << "📐 SetupModernUI завершён" << std::endl;
 }
 
 void MainFrame::UpdateStats() {

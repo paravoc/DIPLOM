@@ -166,29 +166,29 @@ namespace bigiate::config {
         // Обязательные поля
         PARSE_REQUIRED(node, "username", username, std::string);
 
-        // Опциональные поля с дефолтами
-        PARSE_OPTIONAL(db, node, "host", host, std::string, "localhost");
-        PARSE_OPTIONAL(db, node, "port", port, int, 5432);
-        PARSE_OPTIONAL(db, node, "name", name, std::string, "face_db");
-        PARSE_OPTIONAL(db, node, "schema", schema, std::string, "public");
+        // Опциональные поля с дефолтами (исправлено: убраны кавычки)
+        PARSE_OPTIONAL(db, node, host, host, std::string, "localhost");
+        PARSE_OPTIONAL(db, node, port, port, int, 5432);
+        PARSE_OPTIONAL(db, node, name, name, std::string, "face_db");      // ← БЕЗ кавычек!
+        PARSE_OPTIONAL(db, node, schema, schema, std::string, "public");
 
         // Парсинг pool (опционально)
         if (node["pool"] && node["pool"].IsMap()) {
             const auto& pool_node = node["pool"];
 
-            PARSE_OPTIONAL(db.pool, pool_node, "min_connections", min_connections, int, 2);
-            PARSE_OPTIONAL(db.pool, pool_node, "max_connections", max_connections, int, 10);
-            PARSE_OPTIONAL(db.pool, pool_node, "connection_timeout_seconds", connection_timeout_seconds, int, 5);
-            PARSE_OPTIONAL(db.pool, pool_node, "idle_timeout_seconds", idle_timeout_seconds, int, 60);
+            PARSE_OPTIONAL(db.pool, pool_node, min_connections, min_connections, int, 2);
+            PARSE_OPTIONAL(db.pool, pool_node, max_connections, max_connections, int, 10);
+            PARSE_OPTIONAL(db.pool, pool_node, connection_timeout_seconds, connection_timeout_seconds, int, 5);
+            PARSE_OPTIONAL(db.pool, pool_node, idle_timeout_seconds, idle_timeout_seconds, int, 60);
         }
 
         // Парсинг vector (опционально)
         if (node["vector"] && node["vector"].IsMap()) {
             const auto& vector_node = node["vector"];
 
-            PARSE_OPTIONAL(db.vector, vector_node, "dimension", dimension, int, 512);
-            PARSE_OPTIONAL(db.vector, vector_node, "similarity_threshold", similarity_threshold, double, 0.75);
-            PARSE_OPTIONAL(db.vector, vector_node, "index_type", index_type, std::string, "ivfflat");
+            PARSE_OPTIONAL(db.vector, vector_node, dimension, dimension, int, 512);
+            PARSE_OPTIONAL(db.vector, vector_node, similarity_threshold, similarity_threshold, double, 0.75);
+            PARSE_OPTIONAL(db.vector, vector_node, index_type, index_type, std::string, "ivfflat");
         }
 
         return db;
