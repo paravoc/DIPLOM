@@ -93,7 +93,12 @@ namespace bigiate::core {
         std::cout << "   Порт: " << dbCfg.port << std::endl;
         std::cout << "   БД: " << dbCfg.name << std::endl;
 
-        std::string dbPassword = "1234";
+        std::string dbPassword = m_secrets.database_password;
+        if (dbPassword.empty()) {
+            std::cerr << "⚠️ Database password is empty!" << std::endl;
+            return false;
+        }
+
 
         try {
             m_dbPool = std::make_shared<db::DBConnectionPool>(dbCfg, dbPassword, 2, 4);
@@ -180,13 +185,41 @@ namespace bigiate::core {
         int fps = cfg.capture.fps;
         int frameCount = 0;
 
+        // Формируем источник с учётом секретов
         std::string source;
+        bool useAuth = false;
+        std::string username;
+        std::string password;
+
+        // Проверяем наличие секретов для этой камеры
+        auto it = m_secrets.cameras.find(cameraId);
+        if (it != m_secrets.cameras.end()) {
+            const auto& camSecrets = it->second;
+            if (camSecrets.username.has_value() && camSecrets.password.has_value()) {
+                useAuth = true;
+                username = camSecrets.username.value();
+                password = camSecrets.password.value();
+            }
+        }
+
         if (cfg.connection.protocol == "usb" && cfg.connection.device.has_value()) {
             source = cfg.connection.device.value();
         }
         else {
-            source = cfg.connection.protocol + "://" + cfg.connection.host + ":" +
-                std::to_string(cfg.connection.port) + cfg.connection.path;
+            // Формируем RTSP URL с авторизацией, если есть
+            if (useAuth) {
+                source = cfg.connection.protocol + "://" +
+                    username + ":" + password + "@" +
+                    cfg.connection.host + ":" +
+                    std::to_string(cfg.connection.port) +
+                    cfg.connection.path;
+            }
+            else {
+                source = cfg.connection.protocol + "://" +
+                    cfg.connection.host + ":" +
+                    std::to_string(cfg.connection.port) +
+                    cfg.connection.path;
+            }
         }
 
         std::cout << "   Источник: " << source << std::endl;
@@ -280,6 +313,7 @@ namespace bigiate::core {
 
                     std::cout << "🔄 Камера " << cameraId << ": попытка переподключения..." << std::endl;
 
+                    // При переподключении снова используем секреты
                     if (cfg.connection.protocol == "usb") {
                         int device = 0;
                         try { device = std::stoi(source); }
@@ -313,6 +347,7 @@ namespace bigiate::core {
         if (cap.isOpened()) cap.release();
         std::cout << "🛑 Поток камеры " << cameraId << " остановлен" << std::endl;
     }
+
 
     AppCore::~AppCore() {
         stop();  // вызываем остановку при уничтожении

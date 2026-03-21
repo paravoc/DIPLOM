@@ -25,8 +25,10 @@ namespace bigiate::core {
         [[nodiscard]] bool run(const std::string& configPath);
         void stop();
         MainFrame* getMainFrame() { return m_frame; }
+        void setSecrets(const config::Secrets& secrets) { m_secrets = secrets; }
 
     private:
+        config::Secrets m_secrets;
         AppCore() = default;
         ~AppCore();
 
