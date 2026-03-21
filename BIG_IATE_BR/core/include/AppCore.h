@@ -10,6 +10,7 @@
 #include "../../configs/include/types.h"
 #include "../../database/include/DBConnectionPool.h"
 #include "../../database/include/DBQueries.h"
+#include "../../recognition/include/FaceRecognizer.h"
 
 class MainFrame;
 
@@ -26,8 +27,10 @@ namespace bigiate::core {
         void stop();
         MainFrame* getMainFrame() { return m_frame; }
         void setSecrets(const config::Secrets& secrets) { m_secrets = secrets; }
+        bool initRecognition();
 
     private:
+        std::unique_ptr<recognition::FaceRecognizer> m_faceRecognizer;
         config::Secrets m_secrets;
         AppCore() = default;
         ~AppCore();
@@ -43,7 +46,7 @@ namespace bigiate::core {
 
         config::LoadResult m_configResult;
         std::shared_ptr<db::DBConnectionPool> m_dbPool;
-        std::unique_ptr<db::DBQueries> m_dbQueries;
+        std::shared_ptr<db::DBQueries> m_dbQueries;
         std::vector<std::thread> m_cameraThreads;
         std::atomic<bool> m_running{ false };
         MainFrame* m_frame{ nullptr };

@@ -102,7 +102,7 @@ namespace bigiate::core {
 
         try {
             m_dbPool = std::make_shared<db::DBConnectionPool>(dbCfg, dbPassword, 2, 4);
-            m_dbQueries = std::make_unique<db::DBQueries>(m_dbPool);
+            m_dbQueries = std::make_shared<db::DBQueries>(m_dbPool);
 
             auto test = m_dbQueries->testConnection();
             if (test.has_value()) {
@@ -348,6 +348,10 @@ namespace bigiate::core {
         std::cout << "🛑 Поток камеры " << cameraId << " остановлен" << std::endl;
     }
 
+    bool AppCore::initRecognition() {
+        m_faceRecognizer = std::make_unique<recognition::FaceRecognizer>();
+        return m_faceRecognizer->init(m_configResult.config.recognition, m_dbQueries).has_value();
+    }
 
     AppCore::~AppCore() {
         stop();  // вызываем остановку при уничтожении
