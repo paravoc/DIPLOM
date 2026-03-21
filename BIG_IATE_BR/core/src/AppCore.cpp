@@ -53,6 +53,9 @@ namespace bigiate::core {
         if (!initDatabase()) {
             std::cerr << "⚠️ База данных не подключена, но продолжаем..." << std::endl;
         }
+        if (!initRecognition()) {
+            std::cerr << "⚠️ Распознавание не инициализировано" << std::endl;
+        }
         if (!createGUI()) return false;
         if (!startCameras()) {
             std::cerr << "⚠️ Камеры не запущены" << std::endl;
@@ -78,6 +81,26 @@ namespace bigiate::core {
         m_configResult = *result;
         std::cout << "✅ Версия: " << m_configResult.config.version.toString() << std::endl;
         std::cout << "   Камер: " << m_configResult.config.cameras.size() << std::endl;
+        return true;
+    }
+
+
+    bool AppCore::initRecognition() {
+        std::cout << "\n🧠 Инициализация распознавания..." << std::endl;
+
+        m_faceRecognizer = std::make_unique<recognition::FaceRecognizer>();
+
+        auto result = m_faceRecognizer->init(
+            m_configResult.config.recognition,
+            m_dbQueries
+        );
+
+        if (!result.has_value()) {
+            std::cerr << "❌ " << result.error() << std::endl;
+            return false;
+        }
+
+        std::cout << "✅ Распознавание готово" << std::endl;
         return true;
     }
 
@@ -183,6 +206,7 @@ namespace bigiate::core {
         int width = cfg.capture.width;
         int height = cfg.capture.height;
         int fps = cfg.capture.fps;
+        int skipFrames = m_configResult.config.recognition.performance.skip_frames;
         int frameCount = 0;
 
         // Формируем источник с учётом секретов
@@ -191,7 +215,6 @@ namespace bigiate::core {
         std::string username;
         std::string password;
 
-        // Проверяем наличие секретов для этой камеры
         auto it = m_secrets.cameras.find(cameraId);
         if (it != m_secrets.cameras.end()) {
             const auto& camSecrets = it->second;
@@ -206,7 +229,6 @@ namespace bigiate::core {
             source = cfg.connection.device.value();
         }
         else {
-            // Формируем RTSP URL с авторизацией, если есть
             if (useAuth) {
                 source = cfg.connection.protocol + "://" +
                     username + ":" + password + "@" +
@@ -287,6 +309,85 @@ namespace bigiate::core {
 
                 frameCount++;
 
+                // ============================================================
+                // РАСПОЗНАВАНИЕ ЛИЦ
+                // ============================================================
+                if (m_faceRecognizer && (frameCount % skipFrames == 0)) {
+                    auto results = m_faceRecognizer->recognize(frame, cameraId, 0.75f);
+
+                    for (const auto& result : results) {
+                        // Рисуем рамку вокруг лица
+                        if (result.match.has_value()) {
+                            const auto& match = result.match.value();
+
+                            // Зелёная рамка для своих
+                            cv::rectangle(frame, result.detection.bbox, cv::Scalar(0, 255, 0), 2);
+
+                            // Выводим имя и уверенность
+                            std::string label = match.fullName + " (" +
+                                std::to_string(static_cast<int>(match.similarity * 100)) + "%)";
+                            cv::putText(frame, label,
+                                cv::Point(result.detection.bbox.x, result.detection.bbox.y - 5),
+                                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
+
+                            std::cout << "👤 Камера " << cameraId
+                                << ": " << match.fullName
+                                << " (" << match.similarity * 100 << "%)" << std::endl;
+
+                            // ============================================================
+                            // ЗАПИСЬ В ЖУРНАЛ
+                            // ============================================================
+                            if (m_dbQueries) {
+                                db::AccessLog log;
+                                log.personId = match.personId;
+                                log.cameraId = cameraId;
+                                log.gateId = "gate_" + std::to_string(cameraId);
+                                log.direction = "enter";
+                                log.accessGranted = result.accessGranted;
+                                log.accessReason = result.reason;
+                                log.similarityScore = match.similarity;
+                                log.encodingId = match.encodingId;
+
+                                // Сохраняем фото лица (опционально)
+                                // log.faceImagePath = saveFaceImage(result.detection.faceROI);
+
+                                auto logResult = m_dbQueries->addAccessLog(log);
+                                if (!logResult.has_value()) {
+                                    std::cerr << "⚠️ Не удалось записать лог: " << logResult.error() << std::endl;
+                                }
+                            }
+
+                        }
+                        else {
+                            // Красная рамка для неопознанных
+                            cv::rectangle(frame, result.detection.bbox, cv::Scalar(0, 0, 255), 2);
+                            cv::putText(frame, "Unknown",
+                                cv::Point(result.detection.bbox.x, result.detection.bbox.y - 5),
+                                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
+
+                            std::cout << "❓ Камера " << cameraId << ": Неизвестное лицо" << std::endl;
+
+                            // Запись для неизвестного
+                            if (m_dbQueries) {
+                                db::AccessLog log;
+                                log.personId = 0;  // 0 = неизвестный
+                                log.cameraId = cameraId;
+                                log.gateId = "gate_" + std::to_string(cameraId);
+                                log.direction = "enter";
+                                log.accessGranted = false;
+                                log.accessReason = "Person not recognized";
+                                log.similarityScore = 0.0f;
+
+                                auto logResult = m_dbQueries->addAccessLog(log);
+                                if (!logResult.has_value()) {
+                                    std::cerr << "⚠️ Не удалось записать лог: " << logResult.error() << std::endl;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Конвертируем cv::Mat → wxImage для GUI
                 cv::Mat rgb;
                 cv::cvtColor(frame, rgb, cv::COLOR_BGR2RGB);
                 wxImage wxFrame(rgb.cols, rgb.rows, rgb.data, true);
@@ -298,6 +399,7 @@ namespace bigiate::core {
 
             }
             else {
+                // Камера не онлайн — показываем заглушку и пробуем переподключиться
                 std::this_thread::sleep_for(std::chrono::milliseconds(reconnectDelay));
                 reconnectAttempts++;
 
@@ -313,7 +415,6 @@ namespace bigiate::core {
 
                     std::cout << "🔄 Камера " << cameraId << ": попытка переподключения..." << std::endl;
 
-                    // При переподключении снова используем секреты
                     if (cfg.connection.protocol == "usb") {
                         int device = 0;
                         try { device = std::stoi(source); }
@@ -348,10 +449,8 @@ namespace bigiate::core {
         std::cout << "🛑 Поток камеры " << cameraId << " остановлен" << std::endl;
     }
 
-    bool AppCore::initRecognition() {
-        m_faceRecognizer = std::make_unique<recognition::FaceRecognizer>();
-        return m_faceRecognizer->init(m_configResult.config.recognition, m_dbQueries).has_value();
-    }
+
+
 
     AppCore::~AppCore() {
         stop();  // вызываем остановку при уничтожении

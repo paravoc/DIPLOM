@@ -27,9 +27,10 @@ namespace bigiate::core {
         void stop();
         MainFrame* getMainFrame() { return m_frame; }
         void setSecrets(const config::Secrets& secrets) { m_secrets = secrets; }
-        bool initRecognition();
+
 
     private:
+        bool initRecognition();
         std::unique_ptr<recognition::FaceRecognizer> m_faceRecognizer;
         config::Secrets m_secrets;
         AppCore() = default;
