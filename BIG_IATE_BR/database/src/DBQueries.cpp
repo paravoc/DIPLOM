@@ -23,6 +23,56 @@ namespace bigiate::db {
         }
         return result;
     }
+    // database/src/DBQueries.cpp
+
+    AccessLog DBQueries::parseAccessLog(PGresult* res, int row) {
+        AccessLog log;
+        log.id = DB_GET_INT(res, row, 0, 0);
+        log.personId = DB_GET_INT(res, row, 1, 0);
+        log.accessTime = DB_GET_STRING(res, row, 2, "");
+        log.cameraId = DB_GET_INT(res, row, 3, 0);
+        log.gateId = DB_GET_STRING(res, row, 4, "");
+        log.direction = DB_GET_STRING(res, row, 5, "");
+        log.accessGranted = DB_GET_BOOL(res, row, 6, false);
+        log.accessReason = DB_GET_STRING(res, row, 7, "");
+        log.similarityScore = DB_GET_FLOAT(res, row, 8, 0.0f);
+        log.encodingId = DB_GET_INT(res, row, 9, 0);
+        log.faceImagePath = DB_GET_STRING(res, row, 10, "");
+        log.fullFramePath = DB_GET_STRING(res, row, 11, "");
+        log.isForced = DB_GET_BOOL(res, row, 12, false);
+        log.forcedByPersonId = DB_GET_INT(res, row, 13, 0);
+        log.forcedReason = DB_GET_STRING(res, row, 14, "");
+        log.notes = DB_GET_STRING(res, row, 15, "");
+        return log;
+    }
+
+    std::expected<std::vector<AccessLog>, std::string> DBQueries::getLogsByDateRange(
+        const std::string& from,
+        const std::string& to,
+        int limit) {
+
+        std::string query = "SELECT * FROM access_logs "
+            "WHERE access_time BETWEEN '" + from + "' AND '" + to + "' "
+            "ORDER BY access_time DESC "
+            "LIMIT " + std::to_string(limit);
+
+        // Используем m_executor->query() вместо m_conn.query()
+        auto res = m_executor->query(query);
+        if (!res.has_value()) {
+            return std::unexpected(res.error());
+        }
+
+        PGresultPtr result(res.value());
+        int rows = PQntuples(result.get());
+        std::vector<AccessLog> logs;
+        logs.reserve(rows);
+
+        for (int i = 0; i < rows; ++i) {
+            logs.push_back(parseAccessLog(result.get(), i));
+        }
+
+        return logs;
+    }
 
     std::string DBQueries::vectorToString(const std::vector<float>& vec) {
         if (vec.empty()) return "[]";

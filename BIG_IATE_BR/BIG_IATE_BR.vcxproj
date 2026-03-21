@@ -149,6 +149,7 @@
     <ClCompile Include="recognition\src\FaceExtractor.cpp" />
     <ClCompile Include="recognition\src\FaceRecognizer.cpp" />
     <ClCompile Include="ui\src\CameraPanel.cpp" />
+    <ClCompile Include="ui\src\LogsWindow.cpp" />
     <ClCompile Include="ui\src\StatsPanel.cpp" />
     <ClCompile Include="ui\src\LogPanel.cpp" />
     <ClCompile Include="ui\src\MainFrame.cpp" />
@@ -186,6 +187,7 @@
     <ClInclude Include="ui\include\CameraPanel.h" />
     <ClInclude Include="ui\include\LoginDialog.h" />
     <ClInclude Include="ui\include\LogPanel.h" />
+    <ClInclude Include="ui\include\LogsWindow.h" />
     <ClInclude Include="ui\include\MainFrame.h" />
     <ClInclude Include="ui\include\StatsPanel.h" />
   </ItemGroup>

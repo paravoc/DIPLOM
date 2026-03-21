@@ -117,11 +117,11 @@ namespace bigiate::core {
         std::cout << "   БД: " << dbCfg.name << std::endl;
 
         std::string dbPassword = m_secrets.database_password;
+
         if (dbPassword.empty()) {
             std::cerr << "⚠️ Database password is empty!" << std::endl;
             return false;
         }
-
 
         try {
             m_dbPool = std::make_shared<db::DBConnectionPool>(dbCfg, dbPassword, 2, 4);
@@ -160,6 +160,7 @@ namespace bigiate::core {
             return false;
         }
 
+        m_frame->setDBQueries(m_dbQueries);
         m_frame->SetCameras(m_configResult.config.cameras);
         m_frame->Show(true);
         m_frame->Raise();

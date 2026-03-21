@@ -40,6 +40,12 @@ namespace bigiate::db {
         [[nodiscard]] std::expected<std::vector<AccessLog>, std::string> getRecentLogs(int limit = 100);
         [[nodiscard]] std::expected<std::vector<AccessLog>, std::string> getLogsByPerson(int personId, int limit = 100);
 
+        [[nodiscard]] std::expected<std::vector<AccessLog>, std::string> getLogsByDateRange(
+            const std::string& from,
+            const std::string& to,
+            int limit = 1000
+        );
+
         // ========== СТАТИСТИКА ==========
         struct Stats {
             int totalPersons = 0;
