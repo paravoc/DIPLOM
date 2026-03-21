@@ -136,6 +136,7 @@
     <ClCompile Include="configs\src\print_config_utils.cpp" />
     <ClCompile Include="core\src\AppCore.cpp" />
     <ClCompile Include="core\src\SecretsEncryption.cpp" />
+    <ClCompile Include="core\src\SecretsInitializer.cpp" />
     <ClCompile Include="core\src\SecretsManager.cpp" />
     <ClCompile Include="database\src\DBConnection.cpp" />
     <ClCompile Include="database\src\DBConnectionPool.cpp" />
@@ -166,6 +167,7 @@
     <ClInclude Include="configs\include\macros.h" />
     <ClInclude Include="core\include\AppCore.h" />
     <ClInclude Include="core\include\SecretsEncryption.h" />
+    <ClInclude Include="core\include\SecretsInitializer.h" />
     <ClInclude Include="core\include\SecretsMacros.h" />
     <ClInclude Include="core\include\SecretsManager.h" />
     <ClInclude Include="database\include\DBConnection.h" />
