@@ -9,7 +9,6 @@ database:
   port: 5432
   name: "big_iate_db"
   schema: "public"
-  password: "1234"
   
   pool:
     min_connections: 2
@@ -133,6 +132,7 @@ recognition:
     max_faces_per_frame: 10
     parallel_detection: false
     queue_size: 100
+    min_face_size: 4000
 
 # ============================================================
 # ЛОГИРОВАНИЕ

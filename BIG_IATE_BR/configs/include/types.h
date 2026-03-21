@@ -137,6 +137,8 @@ namespace bigiate::config {
             int max_faces_per_frame = 10;
             bool parallel_detection = false;
             int queue_size = 100;
+            int min_face_size = 100;
+
         } performance;
     };
 

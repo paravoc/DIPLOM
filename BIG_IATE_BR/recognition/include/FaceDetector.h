@@ -14,6 +14,9 @@ namespace bigiate::recognition {
         FaceDetector();
         ~FaceDetector() = default;
 
+        void setMinFaceSize(int size) { m_minFaceSize = size; }
+        int getMinFaceSize() const { return m_minFaceSize; }
+
         // Загрузка модели из конфига
         [[nodiscard]] std::expected<void, std::string> load(
             const std::string& modelPath,
@@ -30,6 +33,7 @@ namespace bigiate::recognition {
         [[nodiscard]] bool isLoaded() const { return !m_net.empty(); }
 
     private:
+        int m_minFaceSize = 100; 
         cv::dnn::Net m_net;
         float m_confidenceThreshold;
         int m_inputWidth;

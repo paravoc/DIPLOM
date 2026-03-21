@@ -79,6 +79,14 @@ namespace bigiate::recognition {
                 x2 = std::min(frameWidth, x2);
                 y2 = std::min(frameHeight, y2);
 
+                int faceWidth = x2 - x1;
+                int faceHeight = y2 - y1;
+
+                if (faceWidth < m_minFaceSize || faceHeight < m_minFaceSize) {
+                    continue;  // лицо слишком маленькое — игнорируем
+                }
+
+
                 if (x1 < x2 && y1 < y2) {
                     Detection det;
                     det.bbox = cv::Rect(x1, y1, x2 - x1, y2 - y1);

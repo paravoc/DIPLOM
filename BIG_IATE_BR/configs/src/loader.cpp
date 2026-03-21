@@ -333,6 +333,7 @@ namespace bigiate::config {
             PARSE_OPTIONAL(recognition.performance, perf_node, max_faces_per_frame, max_faces_per_frame, int, 10);
             PARSE_OPTIONAL(recognition.performance, perf_node, parallel_detection, parallel_detection, bool, false);
             PARSE_OPTIONAL(recognition.performance, perf_node, queue_size, queue_size, int, 100);
+            PARSE_OPTIONAL(recognition.performance, perf_node, min_face_size, min_face_size, int, 100);  // ← ДОБАВИТЬ
         }
 
         return recognition;
