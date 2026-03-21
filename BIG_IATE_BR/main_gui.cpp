@@ -1,18 +1,16 @@
 #ifndef USE_CONSOLE
+#define _CRT_SECURE_NO_WARNINGS
 #include <wx/wx.h>
 #include "../../core/include/AppCore.h"
 #include <iostream>
-
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-// Класс приложения
 class BigIateApp : public wxApp {
 public:
     virtual bool OnInit() override {
-        // Включаем консоль для отладки
 #ifdef _WIN32
         AllocConsole();
         FILE* f;
@@ -23,7 +21,6 @@ public:
 
         std::cout << "=== ЗАПУСК BIG IATE ===" << std::endl;
 
-        // ЕДИНСТВЕННАЯ ФУНКЦИЯ — запускает всё!
         bool success = bigiate::core::AppCore::instance().run(
             "C:\\Users\\smidr\\source\\repos\\BIG_IATE_BR\\x64\\Debug\\test_config.yaml"
         );

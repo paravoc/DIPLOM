@@ -114,9 +114,11 @@ namespace bigiate::ui {
 
         auto* panelSizer = new wxBoxSizer(wxVERTICAL);
 
-        // Заголовок
+
+        wxString name = wxString::FromUTF8(cfg.name.c_str());
         widget.title = new wxStaticText(widget.panel, wxID_ANY,
-            wxString::Format("%s (ID: %d)", cfg.name, cfg.id));
+            wxString::Format(_T("%s (ID: %d)"), name, cfg.id));
+
         widget.title->SetForegroundColour(TEXT_COLOR);
         widget.title->SetFont(wxFont(11, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
         panelSizer->Add(widget.title, 0, wxALIGN_CENTER | wxTOP, 10);

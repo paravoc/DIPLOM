@@ -131,3 +131,9 @@ void MainFrame::UpdateCameraFrame(int cameraId, const wxImage& frame) {
         m_cameraPanel->updateCameraFrame(cameraId, frame);
     }
 }
+
+void MainFrame::UpdateCameraStatus(int cameraId, bool online) {
+    if (m_cameraPanel) {
+        m_cameraPanel->updateCameraStatus(cameraId, online);
+    }
+}

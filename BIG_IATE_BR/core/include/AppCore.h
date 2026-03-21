@@ -1,3 +1,4 @@
+// core/include/AppCore.h
 #pragma once
 
 #include <memory>
@@ -5,23 +6,21 @@
 #include <thread>
 #include <atomic>
 #include <string>
-
-// wxWidgets
-#include <wx/image.h>  // ← ДОЛЖНО БЫТЬ ПЕРЕД ИСПОЛЬЗОВАНИЕМ wxImage
-
-// Проектные заголовки
+#include <wx/image.h>
 #include "../../configs/include/types.h"
 #include "../../database/include/DBConnectionPool.h"
 #include "../../database/include/DBQueries.h"
 
-// Forward declaration
 class MainFrame;
 
 namespace bigiate::core {
 
     class AppCore {
     public:
-        static AppCore& instance();
+        static AppCore& instance() {
+            static AppCore core;
+            return core;
+        }
 
         [[nodiscard]] bool run(const std::string& configPath);
         void stop();
@@ -39,7 +38,6 @@ namespace bigiate::core {
         bool startCameras();
         bool createGUI();
         void cameraWorker(int cameraId, const config::CameraConfig& cfg);
-        void updateCameraFrame(int cameraId, const wxImage& frame);  // ← теперь wxImage определён
 
         config::LoadResult m_configResult;
         std::shared_ptr<db::DBConnectionPool> m_dbPool;

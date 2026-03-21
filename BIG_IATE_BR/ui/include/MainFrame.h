@@ -24,6 +24,7 @@ public:
     // Публичные методы для внешнего использования
     void SetCameras(const std::vector<bigiate::config::CameraConfig>& cameras);
     void UpdateCameraFrame(int cameraId, const wxImage& frame);
+    void UpdateCameraStatus(int cameraId, bool online);
 
 private:
     void OnExit(wxCommandEvent& event);

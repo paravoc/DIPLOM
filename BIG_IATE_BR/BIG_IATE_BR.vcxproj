@@ -152,6 +152,10 @@
     <None Include="configs\config.yaml">
       <DeploymentContent>true</DeploymentContent>
     </None>
+    <None Include="models\arcface.onnx" />
+    <None Include="models\deploy.prototxt" />
+    <None Include="models\res10_300x300_ssd_iter_140000.caffemodel" />
+    <None Include="models\yolov5m-face.onnx" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="configs\include\loader.h" />
