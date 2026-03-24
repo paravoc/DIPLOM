@@ -61,6 +61,7 @@ namespace bigiate::db {
         [[nodiscard]] std::expected<void, std::string> testConnection();
 
     private:
+        [[nodiscard]] std::expected<void, std::string> execute(const std::string& query);
         std::shared_ptr<ThreadSafeExecutor> m_executor;
 
         // Парсеры

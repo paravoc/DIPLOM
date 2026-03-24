@@ -3,6 +3,7 @@
 #include "../include/DBMacros.h"
 #include <sstream>
 #include <iomanip>
+#include<iostream>
 
 namespace bigiate::db {
 
@@ -10,19 +11,214 @@ namespace bigiate::db {
         : m_executor(std::make_shared<ThreadSafeExecutor>(std::move(pool))) {
     }
 
+    std::expected<void, std::string> DBQueries::execute(const std::string& query) {
+        return m_executor->execute(query);
+    }
+
+    // ============================================================
+// ОБНОВЛЕНИЕ ЧЕЛОВЕКА
+// ============================================================
+
+    std::expected<void, std::string> DBQueries::updatePerson(const Person& person) {
+        std::string query = "UPDATE persons SET "
+            "full_name = '" + escapeString(person.fullName) + "', "
+            "person_type = '" + person.personType + "', "
+            "birth_date = " + (person.birthDate.empty() ? "NULL" : "'" + person.birthDate + "'") + ", "
+            "gender = '" + person.gender + "', "
+            "phone = '" + escapeString(person.phone) + "', "
+            "email = '" + escapeString(person.email) + "', "
+            "address = '" + escapeString(person.address) + "', "
+            "is_active = " + (person.isActive ? "true" : "false") + ", "
+            "is_blocked = " + (person.isBlocked ? "true" : "false") + ", "
+            "block_reason = " + (person.blockReason.empty() ? "NULL" : "'" + escapeString(person.blockReason) + "'") + ", "
+            "blocked_until = " + (person.blockUntil.empty() ? "NULL" : "'" + person.blockUntil + "'") + ", "
+            "verification_type = '" + person.verificationType + "', "
+            "verification_code = " + (person.verificationCode.empty() ? "NULL" : "'" + person.verificationCode + "'") + ", "
+            "notes = " + (person.notes.empty() ? "NULL" : "'" + escapeString(person.notes) + "'") + ", "
+            "external_id = " + (person.externalId.empty() ? "NULL" : "'" + person.externalId + "'") + ", "
+            "updated_at = CURRENT_TIMESTAMP "
+            "WHERE id = " + std::to_string(person.id);
+
+        return m_executor->execute(query);
+    }
+
+    // ============================================================
+    // БЛОКИРОВКА ЧЕЛОВЕКА
+    // ============================================================
+
+    std::expected<void, std::string> DBQueries::blockPerson(int id, const std::string& reason, const std::string& until) {
+        std::string query = "UPDATE persons SET "
+            "is_blocked = true, "
+            "block_reason = " + (reason.empty() ? "NULL" : "'" + escapeString(reason) + "'") + ", "
+            "blocked_until = " + (until.empty() ? "NULL" : "'" + until + "'") + ", "
+            "updated_at = CURRENT_TIMESTAMP "
+            "WHERE id = " + std::to_string(id);
+
+        return m_executor->execute(query);
+    }
+
+    // ============================================================
+    // РАЗБЛОКИРОВКА ЧЕЛОВЕКА
+    // ============================================================
+
+    std::expected<void, std::string> DBQueries::unblockPerson(int id) {
+        std::string query = "UPDATE persons SET "
+            "is_blocked = false, "
+            "block_reason = NULL, "
+            "blocked_until = NULL, "
+            "updated_at = CURRENT_TIMESTAMP "
+            "WHERE id = " + std::to_string(id);
+
+        return m_executor->execute(query);
+    }
+
+    // ============================================================
+    // ПОЛУЧИТЬ ЭМБЕДДИНГИ ЧЕЛОВЕКА
+    // ============================================================
+
+    std::expected<std::vector<FaceEncoding>, std::string> DBQueries::getFaceEncodingsByPerson(int personId) {
+        std::string query = "SELECT id, person_id, embedding, source_image_path, capture_date, "
+            "quality_score, face_size, is_primary, is_current, expiration_date, notes "
+            "FROM face_encodings WHERE person_id = " + std::to_string(personId) +
+            " ORDER BY is_primary DESC, capture_date DESC";
+
+        auto res = m_executor->query(query);
+        if (!res.has_value()) {
+            return std::unexpected(res.error());
+        }
+
+        PGresultPtr result(res.value());
+        int rows = PQntuples(result.get());
+        std::vector<FaceEncoding> encodings;
+        encodings.reserve(rows);
+
+        for (int i = 0; i < rows; ++i) {
+            FaceEncoding enc;
+            enc.id = DB_GET_INT(result.get(), i, 0, 0);
+            enc.personId = DB_GET_INT(result.get(), i, 1, 0);
+            std::string embStr = DB_GET_STRING(result.get(), i, 2, "[]");
+            enc.embedding = stringToVector(embStr);
+            enc.sourceImagePath = DB_GET_STRING(result.get(), i, 3, "");
+            enc.captureDate = DB_GET_STRING(result.get(), i, 4, "");
+            enc.qualityScore = DB_GET_FLOAT(result.get(), i, 5, 0.0f);
+            enc.faceSize = DB_GET_INT(result.get(), i, 6, 0);
+            enc.isPrimary = DB_GET_BOOL(result.get(), i, 7, false);
+            enc.isCurrent = DB_GET_BOOL(result.get(), i, 8, true);
+            enc.expirationDate = DB_GET_STRING(result.get(), i, 9, "");
+            enc.notes = DB_GET_STRING(result.get(), i, 10, "");
+            encodings.push_back(enc);
+        }
+
+        return encodings;
+    }
+
+    // ============================================================
+    // СДЕЛАТЬ ЭМБЕДДИНГ ОСНОВНЫМ
+    // ============================================================
+
+    std::expected<void, std::string> DBQueries::setPrimaryEncoding(int personId, int encodingId) {
+        // Начинаем транзакцию
+        auto beginResult = m_executor->execute("BEGIN");
+        if (!beginResult.has_value()) {
+            return std::unexpected(beginResult.error());
+        }
+
+        // Снимаем флаг is_primary со всех эмбеддингов этого человека
+        std::string resetQuery = "UPDATE face_encodings SET is_primary = false WHERE person_id = " + std::to_string(personId);
+        auto resetResult = m_executor->execute(resetQuery);
+        if (!resetResult.has_value()) {
+            m_executor->execute("ROLLBACK");
+            return std::unexpected(resetResult.error());
+        }
+
+        // Устанавливаем is_primary для выбранного эмбеддинга
+        std::string setQuery = "UPDATE face_encodings SET is_primary = true WHERE id = " + std::to_string(encodingId);
+        auto setResult = m_executor->execute(setQuery);
+        if (!setResult.has_value()) {
+            m_executor->execute("ROLLBACK");
+            return std::unexpected(setResult.error());
+        }
+
+        // Фиксируем транзакцию
+        auto commitResult = m_executor->execute("COMMIT");
+        if (!commitResult.has_value()) {
+            return std::unexpected(commitResult.error());
+        }
+
+        return {};
+    }
+
     // ============================================================
     // ВСПОМОГАТЕЛЬНЫЕ
     // ============================================================
 
     std::string DBQueries::escapeString(const std::string& str) {
-        // Простая экранизация (в реальном коде используйте PQescapeStringConn)
+        if (str.empty()) return "";
+
         std::string result;
+        result.reserve(str.size() * 2);
+
         for (char c : str) {
-            if (c == '\'') result += "''";
-            else result += c;
+            switch (c) {
+            case '\'': result += "''"; break;
+            case '\\': result += "\\\\"; break;
+            case '\"': result += "\\\""; break;
+            case '\0': break;
+            default: result += c; break;
+            }
         }
         return result;
     }
+
+    std::expected<int, std::string> DBQueries::addFaceEncoding(const FaceEncoding& encoding) {
+        // 1. Проверяем эмбеддинг
+        if (encoding.embedding.empty()) {
+            return std::unexpected("Embedding is empty");
+        }
+
+        // 2. Проверяем размерность (должно быть 512 для ArcFace)
+        if (encoding.embedding.size() != 512) {
+            // Можно предупредить, но не блокировать
+            std::cerr << "Warning: Embedding size is " << encoding.embedding.size()
+                << ", expected 512" << std::endl;
+        }
+
+        // 3. Преобразуем вектор в строку
+        std::string vectorStr = vectorToString(encoding.embedding);
+        if (vectorStr.empty() || vectorStr == "[]") {
+            return std::unexpected("Failed to convert embedding to string");
+        }
+
+        // 4. Формируем запрос
+        std::string query = "INSERT INTO face_encodings (person_id, embedding, source_image_path, "
+            "capture_date, quality_score, face_size, is_primary, is_current, "
+            "expiration_date, notes) VALUES (" +
+            std::to_string(encoding.personId) + ", '" +
+            vectorStr + "'::vector, '" +
+            escapeString(encoding.sourceImagePath) + "', " +
+            (encoding.captureDate.empty() ? "NULL" : "'" + escapeString(encoding.captureDate) + "'") + ", " +
+            std::to_string(encoding.qualityScore) + ", " +
+            std::to_string(encoding.faceSize) + ", " +
+            (encoding.isPrimary ? "true" : "false") + ", " +
+            (encoding.isCurrent ? "true" : "false") + ", " +
+            (encoding.expirationDate.empty() ? "NULL" : "'" + encoding.expirationDate + "'") + ", " +
+            (encoding.notes.empty() ? "NULL" : "'" + escapeString(encoding.notes) + "'") +
+            ") RETURNING id";
+
+        // 5. Выполняем запрос
+        auto res = m_executor->query(query);
+        if (!res.has_value()) {
+            return std::unexpected("Query failed: " + res.error());
+        }
+
+        PGresultPtr result(res.value());
+        if (PQntuples(result.get()) == 0) {
+            return std::unexpected("No rows returned, insert failed");
+        }
+
+        return DB_GET_INT(result.get(), 0, 0, 0);
+    }
+
     // database/src/DBQueries.cpp
 
     AccessLog DBQueries::parseAccessLog(PGresult* res, int row) {

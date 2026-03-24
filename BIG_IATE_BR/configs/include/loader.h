@@ -38,8 +38,6 @@ namespace bigiate::config {
 	[[nodiscard]] bool
 		ConfigFileExists(const std::string& config_path);
 
-	// Выводит весь конфиг в консоль (для отладки)
-	void DumpConfig(const ServerConfig& config);
 
 	//==============================================================================
 	// ПАРСИНГ ОТДЕЛЬНЫХ СЕКЦИЙ

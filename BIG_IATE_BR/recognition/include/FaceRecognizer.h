@@ -33,6 +33,8 @@ namespace bigiate::recognition {
         bool checkAccess(const Match& match, int cameraId);
 
     private:
+        [[nodiscard]] FaceDetector* getDetector() { return m_detector.get(); }
+        [[nodiscard]] FaceExtractor* getExtractor() { return m_extractor.get(); }
         std::unique_ptr<FaceDetector> m_detector;
         std::unique_ptr<FaceExtractor> m_extractor;
         std::shared_ptr<db::DBQueries> m_dbQueries;
