@@ -7,6 +7,44 @@
 
 namespace bigiate::db {
 
+#ifdef _WIN32
+#include <windows.h>
+
+    static std::string toUtf8(const std::string& str) {
+        // Проверяем, есть ли русские буквы
+        bool hasRussian = false;
+        for (char c : str) {
+            unsigned char uc = static_cast<unsigned char>(c);
+            // Диапазон русских букв в Windows-1251: 192-255
+            if (uc >= 192 && uc <= 255) {
+                hasRussian = true;
+                break;
+            }
+        }
+
+        if (!hasRussian) return str;
+
+        // Конвертируем из Windows-1251 в UTF-8
+        int wideSize = MultiByteToWideChar(1251, 0, str.c_str(), -1, nullptr, 0);
+        if (wideSize == 0) return str;
+
+        std::wstring wide(wideSize, L'\0');
+        MultiByteToWideChar(1251, 0, str.c_str(), -1, &wide[0], wideSize);
+
+        int utf8Size = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        if (utf8Size == 0) return str;
+
+        std::string utf8(utf8Size, '\0');
+        WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, &utf8[0], utf8Size, nullptr, nullptr);
+
+        return utf8;
+    }
+#else
+    static std::string toUtf8(const std::string& str) {
+        return str;  // Linux/Mac — уже UTF-8
+    }
+#endif
+
     DBQueries::DBQueries(std::shared_ptr<DBConnectionPool> pool)
         : m_executor(std::make_shared<ThreadSafeExecutor>(std::move(pool))) {
     }
@@ -171,53 +209,31 @@ namespace bigiate::db {
     }
 
     std::expected<int, std::string> DBQueries::addFaceEncoding(const FaceEncoding& encoding) {
-        // 1. Проверяем эмбеддинг
-        if (encoding.embedding.empty()) {
-            return std::unexpected("Embedding is empty");
-        }
+#ifdef _WIN32
+        std::string sourceImagePath = toUtf8(encoding.sourceImagePath);
+#else
+        std::string sourceImagePath = encoding.sourceImagePath;
+#endif
 
-        // 2. Проверяем размерность (должно быть 512 для ArcFace)
-        if (encoding.embedding.size() != 512) {
-            // Можно предупредить, но не блокировать
-            std::cerr << "Warning: Embedding size is " << encoding.embedding.size()
-                << ", expected 512" << std::endl;
-        }
-
-        // 3. Преобразуем вектор в строку
-        std::string vectorStr = vectorToString(encoding.embedding);
-        if (vectorStr.empty() || vectorStr == "[]") {
-            return std::unexpected("Failed to convert embedding to string");
-        }
-
-        // 4. Формируем запрос
-        std::string query = "INSERT INTO face_encodings (person_id, embedding, source_image_path, "
-            "capture_date, quality_score, face_size, is_primary, is_current, "
-            "expiration_date, notes) VALUES (" +
+        // Упрощённый запрос — только обязательные поля
+        std::string query = "INSERT INTO face_encodings (person_id, embedding, source_image_path, capture_date) VALUES (" +
             std::to_string(encoding.personId) + ", '" +
-            vectorStr + "'::vector, '" +
-            escapeString(encoding.sourceImagePath) + "', " +
-            (encoding.captureDate.empty() ? "NULL" : "'" + escapeString(encoding.captureDate) + "'") + ", " +
-            std::to_string(encoding.qualityScore) + ", " +
-            std::to_string(encoding.faceSize) + ", " +
-            (encoding.isPrimary ? "true" : "false") + ", " +
-            (encoding.isCurrent ? "true" : "false") + ", " +
-            (encoding.expirationDate.empty() ? "NULL" : "'" + encoding.expirationDate + "'") + ", " +
-            (encoding.notes.empty() ? "NULL" : "'" + escapeString(encoding.notes) + "'") +
-            ") RETURNING id";
+            vectorToString(encoding.embedding) + "'::vector, '" +
+            escapeString(sourceImagePath) + "', '" +
+            encoding.captureDate + "') RETURNING id";
 
-        // 5. Выполняем запрос
         auto res = m_executor->query(query);
         if (!res.has_value()) {
-            return std::unexpected("Query failed: " + res.error());
+            return std::unexpected(res.error());
         }
 
         PGresultPtr result(res.value());
         if (PQntuples(result.get()) == 0) {
-            return std::unexpected("No rows returned, insert failed");
+            return std::unexpected("Failed to insert face encoding");
         }
-
         return DB_GET_INT(result.get(), 0, 0, 0);
     }
+
 
     // database/src/DBQueries.cpp
 
@@ -390,26 +406,50 @@ namespace bigiate::db {
     }
 
     std::expected<int, std::string> DBQueries::addPerson(const Person& person) {
+#ifdef _WIN32
+        std::string fullName = toUtf8(person.fullName);
+        std::string personType = toUtf8(person.personType);
+        std::string phone = toUtf8(person.phone);
+        std::string email = toUtf8(person.email);
+        std::string address = toUtf8(person.address);
+        std::string blockReason = toUtf8(person.blockReason);
+        std::string verificationCode = toUtf8(person.verificationCode);
+        std::string notes = toUtf8(person.notes);
+        std::string externalId = toUtf8(person.externalId);
+#else
+        std::string fullName = person.fullName;
+        std::string personType = person.personType;
+        std::string phone = person.phone;
+        std::string email = person.email;
+        std::string address = person.address;
+        std::string blockReason = person.blockReason;
+        std::string verificationCode = person.verificationCode;
+        std::string notes = person.notes;
+        std::string externalId = person.externalId;
+#endif
+
         std::string query = "INSERT INTO persons (full_name, person_type, birth_date, "
             "gender, phone, email, address, is_active, is_blocked, "
             "block_reason, blocked_until, verification_type, "
             "verification_code, notes, external_id) VALUES ('" +
-            escapeString(person.fullName) + "', '" + person.personType + "', " +
+            escapeString(fullName) + "', '" + escapeString(personType) + "', " +
             (person.birthDate.empty() ? "NULL" : "'" + person.birthDate + "'") + ", '" +
-            person.gender + "', '" + escapeString(person.phone) + "', '" +
-            escapeString(person.email) + "', '" + escapeString(person.address) + "', " +
+            person.gender + "', '" + escapeString(phone) + "', '" +
+            escapeString(email) + "', '" + escapeString(address) + "', " +
             (person.isActive ? "true" : "false") + ", " +
             (person.isBlocked ? "true" : "false") + ", " +
-            (person.blockReason.empty() ? "NULL" : "'" + escapeString(person.blockReason) + "'") + ", " +
+            (blockReason.empty() ? "NULL" : "'" + escapeString(blockReason) + "'") + ", " +
             (person.blockUntil.empty() ? "NULL" : "'" + person.blockUntil + "'") + ", '" +
             person.verificationType + "', " +
-            (person.verificationCode.empty() ? "NULL" : "'" + person.verificationCode + "'") + ", " +
-            (person.notes.empty() ? "NULL" : "'" + escapeString(person.notes) + "'") + ", " +
-            (person.externalId.empty() ? "NULL" : "'" + person.externalId + "'") +
+            (verificationCode.empty() ? "NULL" : "'" + escapeString(verificationCode) + "'") + ", " +
+            (notes.empty() ? "NULL" : "'" + escapeString(notes) + "'") + ", " +
+            (externalId.empty() ? "NULL" : "'" + escapeString(externalId) + "'") +
             ") RETURNING id";
 
         auto res = m_executor->query(query);
-        if (!res.has_value()) return std::unexpected(res.error());
+        if (!res.has_value()) {
+            return std::unexpected(res.error());
+        }
 
         PGresultPtr result(res.value());
         if (PQntuples(result.get()) == 0) {
