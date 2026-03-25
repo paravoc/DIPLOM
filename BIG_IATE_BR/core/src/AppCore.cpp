@@ -17,6 +17,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <iomanip>  // для std::fixed, std::setprecision
 
 namespace bigiate::core {
 
@@ -339,9 +340,11 @@ namespace bigiate::core {
                                 cv::Point(result.detection.bbox.x, result.detection.bbox.y - 5),
                                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
 
+                            // Выводим в консоль с коэффициентом похожести
                             std::cout << "👤 Камера " << cameraId
                                 << ": " << match.fullName
-                                << " (" << match.similarity * 100 << "%)" << std::endl;
+                                << " (СХОЖЕСТЬ: " << std::fixed << std::setprecision(2)
+                                << match.similarity * 100 << "%)" << std::endl;
 
                             // Запись в журнал
                             if (m_dbQueries) {
@@ -369,7 +372,16 @@ namespace bigiate::core {
                                 cv::Point(result.detection.bbox.x, result.detection.bbox.y - 5),
                                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
 
-                            std::cout << "❓ Камера " << cameraId << ": Неизвестное лицо" << std::endl;
+                            // Выводим в консоль с лучшим совпадением
+                            std::cout << "❓ Камера " << cameraId << ": Неизвестное лицо";
+                            if (result.bestMatchSimilarity > 0) {
+                                std::cout << " (ЛУЧШЕЕ СОВПАДЕНИЕ: " << std::fixed << std::setprecision(2)
+                                    << result.bestMatchSimilarity * 100 << "%)";
+                            }
+                            else {
+                                std::cout << " (нет совпадений в БД)";
+                            }
+                            std::cout << std::endl;
 
                             // Запись для неизвестного
                             if (m_dbQueries) {
@@ -380,7 +392,7 @@ namespace bigiate::core {
                                 log.direction = "enter";
                                 log.accessGranted = false;
                                 log.accessReason = "Person not recognized";
-                                log.similarityScore = 0.0f;
+                                log.similarityScore = result.bestMatchSimilarity;
 
                                 auto logResult = m_dbQueries->addAccessLog(log);
                                 if (!logResult.has_value()) {

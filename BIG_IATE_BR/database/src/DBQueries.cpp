@@ -5,6 +5,7 @@
 #include <iomanip>
 #include<iostream>
 
+
 namespace bigiate::db {
 
 #ifdef _WIN32
@@ -56,6 +57,31 @@ namespace bigiate::db {
     // ============================================================
 // ОБНОВЛЕНИЕ ЧЕЛОВЕКА
 // ============================================================
+
+    static std::vector<float> normalizeEmbedding(const std::vector<float>& embedding) {
+        if (embedding.empty()) return embedding;
+
+        // Вычисляем норму (длину вектора)
+        float norm = 0.0f;
+        for (float val : embedding) {
+            norm += val * val;
+        }
+        norm = std::sqrt(norm);
+
+        if (norm < 0.0001f) return embedding;  // Защита от деления на ноль
+
+        // Нормализуем
+        std::vector<float> result;
+        result.reserve(embedding.size());
+        for (float val : embedding) {
+            result.push_back(val / norm);
+        }
+
+        return result;
+    }
+
+
+
 
     std::expected<void, std::string> DBQueries::updatePerson(const Person& person) {
         std::string query = "UPDATE persons SET "
@@ -209,18 +235,36 @@ namespace bigiate::db {
     }
 
     std::expected<int, std::string> DBQueries::addFaceEncoding(const FaceEncoding& encoding) {
+        // Нормализуем эмбеддинг
+        std::vector<float> normalizedEmbedding = normalizeEmbedding(encoding.embedding);
+
 #ifdef _WIN32
         std::string sourceImagePath = toUtf8(encoding.sourceImagePath);
+        std::string notes = toUtf8(encoding.notes);
 #else
         std::string sourceImagePath = encoding.sourceImagePath;
+        std::string notes = encoding.notes;
 #endif
 
-        // Упрощённый запрос — только обязательные поля
-        std::string query = "INSERT INTO face_encodings (person_id, embedding, source_image_path, capture_date) VALUES (" +
+        // Форматируем числа с точкой, а не запятой
+        std::string qualityScoreStr = std::to_string(encoding.qualityScore);
+        qualityScoreStr[1] = '.';
+        std::cout << qualityScoreStr << std::endl;
+       
+        std::string query = "INSERT INTO face_encodings (person_id, embedding, source_image_path, "
+            "capture_date, quality_score, face_size, is_primary, is_current, "
+            "expiration_date, notes) VALUES (" +
             std::to_string(encoding.personId) + ", '" +
-            vectorToString(encoding.embedding) + "'::vector, '" +
+            vectorToString(normalizedEmbedding) + "'::vector, '" +
             escapeString(sourceImagePath) + "', '" +
-            encoding.captureDate + "') RETURNING id";
+            encoding.captureDate + "', " +
+            qualityScoreStr + ", " +      // <-- ИСПРАВЛЕНО
+            std::to_string(encoding.faceSize) + ", " +
+            (encoding.isPrimary ? "true" : "false") + ", " +
+            (encoding.isCurrent ? "true" : "false") + ", " +
+            (encoding.expirationDate.empty() ? "NULL" : "'" + encoding.expirationDate + "'") + ", " +
+            (notes.empty() ? "NULL" : "'" + escapeString(notes) + "'") +
+            ") RETURNING id";
 
         auto res = m_executor->query(query);
         if (!res.has_value()) {
@@ -234,8 +278,6 @@ namespace bigiate::db {
         return DB_GET_INT(result.get(), 0, 0, 0);
     }
 
-
-    // database/src/DBQueries.cpp
 
     AccessLog DBQueries::parseAccessLog(PGresult* res, int row) {
         AccessLog log;
@@ -458,19 +500,35 @@ namespace bigiate::db {
         return DB_GET_INT(result.get(), 0, 0, 0);
     }
 
+    // Нормализация вектора (делаем длину = 1)
+
     // ============================================================
     // ПОИСК ПО ЭМБЕДДИНГУ (PGVECTOR)
     // ============================================================
 
     std::expected<std::vector<MatchResult>, std::string> DBQueries::findPersonByEmbedding(
-        const std::vector<float>& embedding, float threshold, int limit) {
+        const std::vector<float>& embedding,
+        float threshold,
+        int limit) {
+
+        // Нормализуем эмбеддинг для поиска
+        std::vector<float> normalizedEmbedding = normalizeEmbedding(embedding);
+
+
+        std::cout << "🔍 [SEARCH] Поиск по эмбеддингу, порог: " << threshold << std::endl;
+        std::cout << "   Первые 10 значений для поиска: ";
+        for (int i = 0; i < (int)normalizedEmbedding.size(); i++) {
+            std::cout << normalizedEmbedding[i] << " ";
+        }
 
         std::string query = "SELECT * FROM find_person_by_embedding('" +
-            vectorToString(embedding) + "'::vector, " +
+            vectorToString(normalizedEmbedding) + "'::vector, " +
             std::to_string(threshold) + ") LIMIT " + std::to_string(limit);
 
         auto res = m_executor->query(query);
-        if (!res.has_value()) return std::unexpected(res.error());
+        if (!res.has_value()) {
+            return std::unexpected(res.error());
+        }
 
         PGresultPtr result(res.value());
         int rows = PQntuples(result.get());
@@ -481,7 +539,6 @@ namespace bigiate::db {
         }
         return matches;
     }
-
     // ============================================================
     // ЖУРНАЛ
     // ============================================================

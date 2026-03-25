@@ -18,7 +18,7 @@ namespace bigiate::core {
     struct PeopleManager::Impl {
         config::LoadResult configResult;
         std::shared_ptr<db::DBQueries> dbQueries;
-        std::unique_ptr<recognition::FaceRecognizer> faceRecognizer;
+        std::shared_ptr<recognition::FaceRecognizer> faceRecognizer;
     };
 
     static std::string getCurrentTimestamp() {
@@ -74,7 +74,7 @@ namespace bigiate::core {
         std::cout << "✅ Database connected" << std::endl;
 
         // 4. Инициализируем распознавание
-        m_pimpl->faceRecognizer = std::make_unique<recognition::FaceRecognizer>();
+        m_pimpl->faceRecognizer = std::make_shared<recognition::FaceRecognizer>();  // <-- make_shared
         auto initResult = m_pimpl->faceRecognizer->init(
             m_pimpl->configResult.config.recognition,
             m_pimpl->dbQueries
@@ -92,6 +92,21 @@ namespace bigiate::core {
     // ============================================================
     // ВСПОМОГАТЕЛЬНЫЕ
     // ============================================================
+    // В конец файла PeopleManager.cpp добавьте:
+
+    std::shared_ptr<recognition::FaceRecognizer> PeopleManager::getRecognizer() {
+        if (!m_initialized) {
+            return nullptr;
+        }
+        return m_pimpl->faceRecognizer;
+    }
+
+    std::vector<config::CameraConfig> PeopleManager::getCameras() const {
+        if (!m_initialized) {
+            return {};
+        }
+        return m_pimpl->configResult.config.cameras;
+    }
 
     std::expected<cv::Mat, std::string> PeopleManager::loadImage(const std::string& path) {
         if (!std::filesystem::exists(path)) {
@@ -110,20 +125,51 @@ namespace bigiate::core {
             return std::unexpected("Face recognizer not initialized");
         }
 
-        // Используем FaceRecognizer для получения эмбеддинга
-        // Нужно получить детектор и экстрактор из FaceRecognizer
-        // Для этого нужно добавить геттеры в FaceRecognizer
+        // Получаем детектор и экстрактор из FaceRecognizer
+        auto* detector = m_pimpl->faceRecognizer->getDetector();
+        auto* extractor = m_pimpl->faceRecognizer->getExtractor();
 
-        // Временное решение: используем recognize, но нам нужен только эмбеддинг
-        // Сначала детектируем лицо
-        cv::Mat gray;
-        cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+        if (!detector || !extractor) {
+            return std::unexpected("Detector or extractor not available");
+        }
 
-        // Здесь должна быть логика детекции и экстракции
-        // Пока возвращаем ошибку, нужно доработать FaceRecognizer
-        return std::unexpected("Extract embedding not fully implemented - need to add getDetector/getExtractor to FaceRecognizer");
+        // Детектируем лицо
+        auto detections = detector->detect(image, 0);
+        if (detections.empty()) {
+            return std::unexpected("No face detected in image");
+        }
+
+        // Если несколько лиц, выбираем самое большое
+        recognition::Detection* bestDetection = &detections[0];
+        for (auto& det : detections) {
+            if (det.bbox.area() > bestDetection->bbox.area()) {
+                bestDetection = &det;
+            }
+        }
+
+        // Проверяем размер лица
+        int faceSize = std::min(bestDetection->bbox.width, bestDetection->bbox.height);
+        if (faceSize < 60) {
+            return std::unexpected("Face too small (" + std::to_string(faceSize) + "px)");
+        }
+
+        // Извлекаем эмбеддинг
+        auto embResult = extractor->extract(bestDetection->faceROI);
+        if (!embResult.has_value()) {
+            return std::unexpected(embResult.error());
+        }
+
+        // Нормализуем эмбеддинг
+        std::vector<float> embedding = embResult.value().vector;
+        float norm = 0.0f;
+        for (float v : embedding) norm += v * v;
+        norm = std::sqrt(norm);
+        if (norm > 0.0001f) {
+            for (float& v : embedding) v /= norm;
+        }
+
+        return embedding;
     }
-
     std::expected<void, std::string> PeopleManager::hardDeletePerson(int personId) {
         db::Person p;
         p.id = personId;
@@ -159,18 +205,14 @@ namespace bigiate::core {
 
         cv::Mat image = imageResult.value();
 
-        // 2. Распознаём лицо (получаем эмбеддинг)
-        // Временно: используем заглушку, нужно доработать FaceRecognizer
-        std::vector<float> embedding;
+        // 2. Извлекаем реальный эмбеддинг
+        auto embeddingResult = extractEmbedding(image);
+        if (!embeddingResult.has_value()) {
+            return std::unexpected(embeddingResult.error());
+        }
+        std::vector<float> embedding = embeddingResult.value();
 
-        // TODO: Добавить методы getDetector/getExtractor в FaceRecognizer
-        // auto* detector = m_pimpl->faceRecognizer->getDetector();
-        // auto* extractor = m_pimpl->faceRecognizer->getExtractor();
-        // auto detections = detector->detect(image, 0);
-        // auto embResult = extractor->extract(detections[0].faceROI);
-
-        // Пока используем заглушку
-        embedding.resize(512, 0.1f);
+        std::cout << "✅ Embedding extracted (size: " << embedding.size() << ")" << std::endl;
 
         if (embedding.empty()) {
             return std::unexpected("Failed to extract embedding");
@@ -264,23 +306,26 @@ namespace bigiate::core {
 
             cv::Mat image = imageResult.value();
 
-            // TODO: Извлечь эмбеддинг
-            std::vector<float> embedding;
-            embedding.resize(512, 0.1f);
-
-            if (embedding.empty()) {
-                std::cerr << "    ⚠️ Failed to extract embedding" << std::endl;
+            // Извлекаем реальный эмбеддинг
+            auto embeddingResult = extractEmbedding(image);
+            if (!embeddingResult.has_value()) {
+                std::cerr << "    ⚠️ " << embeddingResult.error() << std::endl;
                 continue;
             }
+            std::vector<float> embedding = embeddingResult.value();
 
-            // Сохраняем эмбеддинг
+            // Сохраняем эмбеддинг с ВСЕМИ полями
             db::FaceEncoding encoding;
             encoding.personId = personId;
             encoding.embedding = embedding;
             encoding.sourceImagePath = path;
             encoding.captureDate = getCurrentTimestamp();
+            encoding.qualityScore = 1.0f;           // <-- ДОБАВЛЕНО
+            encoding.faceSize = 0;                  // <-- ДОБАВЛЕНО
             encoding.isPrimary = (successCount == 0);
             encoding.isCurrent = true;
+            encoding.expirationDate = "";           // <-- ДОБАВЛЕНО
+            encoding.notes = "";                    // <-- ДОБАВЛЕНО
 
             auto encodingIdResult = m_pimpl->dbQueries->addFaceEncoding(encoding);
             if (!encodingIdResult.has_value()) {
@@ -329,22 +374,25 @@ namespace bigiate::core {
 
         cv::Mat image = imageResult.value();
 
-        // TODO: Извлечь эмбеддинг
-        std::vector<float> embedding;
-        embedding.resize(512, 0.1f);
-
-        if (embedding.empty()) {
-            return std::unexpected("Failed to extract embedding");
+        // Извлекаем реальный эмбеддинг
+        auto embeddingResult = extractEmbedding(image);
+        if (!embeddingResult.has_value()) {
+            return std::unexpected(embeddingResult.error());
         }
+        std::vector<float> embedding = embeddingResult.value();
 
-        // Добавляем эмбеддинг
+        // Добавляем эмбеддинг с ВСЕМИ полями
         db::FaceEncoding encoding;
         encoding.personId = personId;
         encoding.embedding = embedding;
         encoding.sourceImagePath = imagePath;
         encoding.captureDate = getCurrentTimestamp();
+        encoding.qualityScore = 1.0f;           // <-- ДОБАВЛЕНО
+        encoding.faceSize = 0;                  // <-- ДОБАВЛЕНО
         encoding.isPrimary = setAsPrimary;
         encoding.isCurrent = true;
+        encoding.expirationDate = "";           // <-- ДОБАВЛЕНО
+        encoding.notes = "";                    // <-- ДОБАВЛЕНО
 
         auto encodingIdResult = m_pimpl->dbQueries->addFaceEncoding(encoding);
         if (!encodingIdResult.has_value()) {
@@ -358,7 +406,6 @@ namespace bigiate::core {
         std::cout << "✅ Photo added! Encoding ID: " << encodingIdResult.value() << std::endl;
         return encodingIdResult.value();
     }
-
     // ============================================================
     // ПОКАЗАТЬ ВСЕХ
     // ============================================================

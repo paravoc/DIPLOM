@@ -5,11 +5,18 @@
 #include <vector>
 #include <optional>
 #include <memory>
-#include <opencv2/opencv.hpp>
 #include "../../configs/include/types.h"
 
+// Forward declaration для OpenCV (вместо включения всего opencv.hpp)
+namespace cv {
+    class Mat;
+}
+
+// Forward declarations
 namespace bigiate::db {
     class DBQueries;
+    struct FaceEncoding;
+    struct Person;
 }
 
 namespace bigiate::recognition {
@@ -46,6 +53,8 @@ namespace bigiate::core {
         // Инициализация
         [[nodiscard]] std::expected<void, std::string> init(const std::string& configPath);
 
+        // ========== CREATE ==========
+
         // Добавить человека из одного фото
         [[nodiscard]] std::expected<int, std::string> addPersonFromPhoto(
             const std::string& imagePath,
@@ -74,11 +83,15 @@ namespace bigiate::core {
             bool setAsPrimary = false
         );
 
-        // Показать всех людей
+        // ========== READ ==========
+
+        // Показать всех людей в консоль
         [[nodiscard]] std::expected<void, std::string> listAllPersons();
 
         // Получить информацию о человеке
         [[nodiscard]] std::expected<PersonInfo, std::string> getPersonInfo(int personId);
+
+        // ========== UPDATE ==========
 
         // Обновить данные человека
         [[nodiscard]] std::expected<void, std::string> updatePerson(
@@ -102,6 +115,16 @@ namespace bigiate::core {
 
         // Удалить человека (мягкое удаление)
         [[nodiscard]] std::expected<void, std::string> deletePerson(int personId);
+
+        // ========== GETTERS ==========
+
+        // Получить recognizer для работы с камерой
+        [[nodiscard]] std::shared_ptr<recognition::FaceRecognizer> getRecognizer();
+
+        // Получить список камер из конфига
+        [[nodiscard]] std::vector<config::CameraConfig> getCameras() const;
+
+        // ========== UTILS ==========
 
         // Закрыть соединения
         void close();

@@ -90,6 +90,9 @@
     <ClCompile Include="ui\src\AddPersonDialog.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="ui\src\PhotoCaptureDialog.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="configs\config.yaml" />
@@ -178,6 +181,9 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="ui\include\AddPersonDialog.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\include\PhotoCaptureDialog.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

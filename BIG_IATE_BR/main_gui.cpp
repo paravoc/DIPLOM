@@ -72,45 +72,66 @@ public:
             // ДОБАВЛЕНИЕ ЧЕЛОВЕКА
             // ============================================================
             else if (action == StartupDialog::ACTION_ADD_PERSON) {
-                AddPersonDialog dlg(nullptr);
+                std::cout << "\n=== ДОБАВЛЕНИЕ ЧЕЛОВЕКА ===\n" << std::endl;
 
-                if (dlg.ShowModal() != wxID_OK) {
-                    continue;  // Вернуться в меню
-                }
-
-                auto data = dlg.GetData();
-
+                // Инициализируем менеджер для получения recognizer и камер
                 bigiate::core::PeopleManager manager;
                 auto initResult = manager.init(configPath);
 
                 if (!initResult.has_value()) {
                     wxMessageBox(
-                        wxString::FromUTF8("Ошибка: " + initResult.error()),
+                        wxString::FromUTF8("Ошибка инициализации:\n" + initResult.error()),
                         wxString::FromUTF8("Ошибка"),
                         wxOK | wxICON_ERROR
                     );
                     continue;
                 }
 
-                auto result = manager.addPersonFromPhoto(
-                    data.imagePath, data.fullName, data.personType
-                );
+                // Создаём диалог с recognizer и камерами
+                AddPersonDialog dlg(nullptr, manager.getRecognizer(), manager.getCameras());
 
-                if (result.has_value()) {
-                    wxMessageBox(
-                        wxString::FromUTF8("✅ Добавлен!\n\nID: " + std::to_string(result.value()) +
-                            "\nФИО: " + data.fullName +
-                            "\nТип: " + data.personType),
-                        wxString::FromUTF8("Успех"),
-                        wxOK | wxICON_INFORMATION
-                    );
+                if (dlg.ShowModal() != wxID_OK) {
+                    manager.close();
+                    continue;  // Вернуться в меню
                 }
-                else {
-                    wxMessageBox(
-                        wxString::FromUTF8("❌ Ошибка:\n" + result.error()),
-                        wxString::FromUTF8("Ошибка"),
-                        wxOK | wxICON_ERROR
+
+                auto data = dlg.GetData();
+
+                // Добавляем человека через существующий метод
+                bool success = true;
+                int personId = 0;
+
+                for (const auto& path : data.imagePaths) {
+                    auto result = manager.addPersonFromPhoto(
+                        path, data.fullName, data.personType,
+                        data.birthDate, data.gender,
+                        data.phone, data.email, data.address
                     );
+
+                    if (result.has_value()) {
+                        personId = result.value();
+                        std::cout << "✅ Добавлен человек с ID: " << personId << std::endl;
+                    }
+                    else {
+                        success = false;
+                        wxMessageBox(
+                            wxString::FromUTF8("❌ Ошибка при добавлении:\n" + result.error()),
+                            wxString::FromUTF8("Ошибка"),
+                            wxOK | wxICON_ERROR
+                        );
+                        break;
+                    }
+                }
+
+                if (success && !data.imagePaths.empty()) {
+                    wxString message = wxString::Format(
+                        _T("✅ Человек успешно добавлен!\n\nID: %d\nФИО: %s\nТип: %s\nФото: %d"),
+                        personId,
+                        wxString::FromUTF8(data.fullName),
+                        wxString::FromUTF8(data.personType),
+                        (int)data.imagePaths.size()
+                    );
+                    wxMessageBox(message, _T("Успех"), wxOK | wxICON_INFORMATION);
                 }
 
                 manager.close();
@@ -121,6 +142,8 @@ public:
             // СПИСОК ЛЮДЕЙ
             // ============================================================
             else if (action == StartupDialog::ACTION_LIST_PERSONS) {
+                std::cout << "\n=== СПИСОК ЛЮДЕЙ ===\n" << std::endl;
+
                 bigiate::core::PeopleManager manager;
                 auto initResult = manager.init(configPath);
 
@@ -182,6 +205,7 @@ int main(int argc, char* argv[]) {
 
         if (password.empty()) {
             std::cerr << "❌ Требуется пароль!" << std::endl;
+            std::cout << "Использование: BIG_IATE_BR.exe --encrypt <input.yaml> <password> [output.enc]" << std::endl;
             return 1;
         }
 

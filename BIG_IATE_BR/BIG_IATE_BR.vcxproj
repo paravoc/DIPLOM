@@ -151,6 +151,7 @@
     <ClCompile Include="ui\src\AddPersonDialog.cpp" />
     <ClCompile Include="ui\src\CameraPanel.cpp" />
     <ClCompile Include="ui\src\LogsWindow.cpp" />
+    <ClCompile Include="ui\src\PhotoCaptureDialog.cpp" />
     <ClCompile Include="ui\src\StartupDialog.cpp" />
     <ClCompile Include="ui\src\StatsPanel.cpp" />
     <ClCompile Include="ui\src\LogPanel.cpp" />
@@ -192,6 +193,7 @@
     <ClInclude Include="ui\include\LogPanel.h" />
     <ClInclude Include="ui\include\LogsWindow.h" />
     <ClInclude Include="ui\include\MainFrame.h" />
+    <ClInclude Include="ui\include\PhotoCaptureDialog.h" />
     <ClInclude Include="ui\include\StartupDialog.h" />
     <ClInclude Include="ui\include\StatsPanel.h" />
   </ItemGroup>

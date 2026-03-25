@@ -41,6 +41,7 @@ namespace bigiate::recognition {
         std::optional<Match> match; // результат поиска (если найден)
         bool accessGranted;         // доступ разрешён
         std::string reason;         // причина решения
+        float bestMatchSimilarity = 0.0f;  // <--- ДОБАВЬТЕ ЭТУ СТРОКУ
     };
 
 } // namespace bigiate::recognition
