@@ -131,14 +131,23 @@ namespace bigiate::core {
 
         bool isInitialized() const { return m_initialized; }
 
-    private:
-        // Вспомогательные функции (объявлены, но реализация в .cpp)
-        [[nodiscard]] std::expected<cv::Mat, std::string> loadImage(const std::string& path);
-        [[nodiscard]] std::expected<std::vector<float>, std::string> extractEmbedding(const cv::Mat& image);
-
+        [[nodiscard]] std::expected<std::vector<db::Person>, std::string> getAllPersonsInfo(bool onlyActive = true);
+        [[nodiscard]] std::expected<std::vector<db::FaceEncoding>, std::string> getFaceEncodingsByPerson(int personId);
         // Удаление из БД
         [[nodiscard]] std::expected<void, std::string> hardDeletePerson(int personId);
+        [[nodiscard]] std::expected<void, std::string> deleteEncoding(int encodingId);
+        [[nodiscard]] std::expected<cv::Mat, std::string> loadImageFromPath(const std::string& path);
+        [[nodiscard]] std::expected<void, std::string> addEncodingToPerson(int personId, const db::FaceEncoding& encoding);
 
+        [[nodiscard]] std::expected<int, std::string> addPersonOnly(const db::Person& person);
+        [[nodiscard]] std::expected<cv::Mat, std::string> loadImage(const std::string& path);
+        [[nodiscard]] std::expected<std::vector<float>, std::string> extractEmbedding(const cv::Mat& image);
+        
+    private:
+        // Вспомогательные функции (объявлены, но реализация в .cpp)
+      
+
+        
         struct Impl;
         std::unique_ptr<Impl> m_pimpl;
         bool m_initialized{ false };

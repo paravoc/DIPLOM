@@ -5,11 +5,21 @@
 #include "core/include/SecretsInitializer.h"
 #include "ui/include/StartupDialog.h"
 #include "ui/include/AddPersonDialog.h"
+#include "ui/include/DeleteEncodingDialog.h"
 #include <iostream>
+#include <map>
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
+static std::string getCurrentTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&now_time_t), "%Y-%m-%d %H:%M:%S");
+    return ss.str();
+}
 
 class BigIateApp : public wxApp {
 public:
@@ -27,12 +37,11 @@ public:
 
         std::string configPath = "C:\\Users\\smidr\\source\\repos\\BIG_IATE_BR\\x64\\Debug\\test_config.yaml";
 
-        // Цикл для возврата в меню после операций
         while (true) {
             StartupDialog dlg(nullptr);
 
             if (dlg.ShowModal() != wxID_OK) {
-                return false;  // Выход
+                return false;
             }
 
             auto action = dlg.GetSelectedAction();
@@ -65,16 +74,18 @@ public:
                     return false;
                 }
 
-                return true;  // Основной режим запущен, выходим из цикла
+                return true;
             }
 
             // ============================================================
             // ДОБАВЛЕНИЕ ЧЕЛОВЕКА
             // ============================================================
+// ============================================================
+// ДОБАВЛЕНИЕ ЧЕЛОВЕКА (1 человек = много фото)
+// ============================================================
             else if (action == StartupDialog::ACTION_ADD_PERSON) {
                 std::cout << "\n=== ДОБАВЛЕНИЕ ЧЕЛОВЕКА ===\n" << std::endl;
 
-                // Инициализируем менеджер для получения recognizer и камер
                 bigiate::core::PeopleManager manager;
                 auto initResult = manager.init(configPath);
 
@@ -87,57 +98,129 @@ public:
                     continue;
                 }
 
-                // Создаём диалог с recognizer и камерами
-                AddPersonDialog dlg(nullptr, manager.getRecognizer(), manager.getCameras());
+                AddPersonDialog addDlg(nullptr, manager.getRecognizer(), manager.getCameras());
 
-                if (dlg.ShowModal() != wxID_OK) {
+                if (addDlg.ShowModal() != wxID_OK) {
                     manager.close();
-                    continue;  // Вернуться в меню
+                    continue;
                 }
 
-                auto data = dlg.GetData();
+                auto data = addDlg.GetData();
 
-                // Добавляем человека через существующий метод
-                bool success = true;
-                int personId = 0;
+                if (data.imagePaths.empty()) {
+                    manager.close();
+                    wxMessageBox(_T("Нет фото для добавления"), _T("Ошибка"), wxOK | wxICON_ERROR);
+                    continue;
+                }
 
-                for (const auto& path : data.imagePaths) {
-                    auto result = manager.addPersonFromPhoto(
-                        path, data.fullName, data.personType,
-                        data.birthDate, data.gender,
-                        data.phone, data.email, data.address
+                if (data.fullName.empty()) {
+                    manager.close();
+                    wxMessageBox(_T("Введите ФИО"), _T("Ошибка"), wxOK | wxICON_ERROR);
+                    continue;
+                }
+
+                // ========== 1. СОЗДАЁМ ЧЕЛОВЕКА (ОДИН РАЗ) ==========
+                bigiate::db::Person person;
+                person.fullName = data.fullName;
+                person.personType = data.personType;
+                person.birthDate = data.birthDate;
+                person.gender = data.gender;
+                person.phone = data.phone;
+                person.email = data.email;
+                person.address = data.address;
+                person.isActive = true;
+                person.isBlocked = false;
+
+                auto personIdResult = manager.addPersonOnly(person);
+
+                if (!personIdResult.has_value()) {
+                    wxMessageBox(
+                        wxString::FromUTF8("❌ Ошибка при добавлении человека:\n" + personIdResult.error()),
+                        wxString::FromUTF8("Ошибка"),
+                        wxOK | wxICON_ERROR
                     );
+                    manager.close();
+                    continue;
+                }
 
-                    if (result.has_value()) {
-                        personId = result.value();
-                        std::cout << "✅ Добавлен человек с ID: " << personId << std::endl;
+                int personId = personIdResult.value();
+                std::cout << "✅ Добавлен человек с ID: " << personId << std::endl;
+
+                // ========== 2. ДОБАВЛЯЕМ ВСЕ ФОТО К ЭТОМУ ЧЕЛОВЕКУ ==========
+                int successCount = 0;
+
+                for (size_t i = 0; i < data.imagePaths.size(); i++) {
+                    const auto& path = data.imagePaths[i];
+                    std::cout << "📸 Обработка фото " << (i + 1) << ": " << path << std::endl;
+
+                    bigiate::db::FaceEncoding encoding;
+                    encoding.personId = personId;
+                    encoding.sourceImagePath = path;
+                    encoding.captureDate = getCurrentTimestamp();
+                    encoding.isPrimary = (i == 0);  // Первое фото — основное
+                    encoding.isCurrent = true;
+                    encoding.qualityScore = 1.0f;
+                    encoding.faceSize = 0;
+
+                    // Если есть готовый эмбеддинг из камеры
+                    if (i < data.embeddings.size() && !data.embeddings[i].empty()) {
+                        encoding.embedding = data.embeddings[i];
+                        auto encResult = manager.addEncodingToPerson(personId, encoding);
+                        if (encResult.has_value()) {
+                            successCount++;
+                            std::cout << "✅ Фото " << (i + 1) << " добавлено (из камеры)" << std::endl;
+                        }
+                        else {
+                            std::cerr << "❌ Ошибка: " << encResult.error() << std::endl;
+                        }
                     }
+                    // Иначе загружаем из файла
                     else {
-                        success = false;
-                        wxMessageBox(
-                            wxString::FromUTF8("❌ Ошибка при добавлении:\n" + result.error()),
-                            wxString::FromUTF8("Ошибка"),
-                            wxOK | wxICON_ERROR
-                        );
-                        break;
+                        auto imageResult = manager.loadImageFromPath(path);
+                        if (!imageResult.has_value()) {
+                            std::cerr << "❌ Не удалось загрузить фото: " << imageResult.error() << std::endl;
+                            continue;
+                        }
+
+                        auto embeddingResult = manager.extractEmbedding(imageResult.value());
+                        if (!embeddingResult.has_value()) {
+                            std::cerr << "❌ Не удалось извлечь эмбеддинг: " << embeddingResult.error() << std::endl;
+                            continue;
+                        }
+
+                        encoding.embedding = embeddingResult.value();
+                        auto encResult = manager.addEncodingToPerson(personId, encoding);
+                        if (encResult.has_value()) {
+                            successCount++;
+                            std::cout << "✅ Фото " << (i + 1) << " добавлено (из файла)" << std::endl;
+                        }
+                        else {
+                            std::cerr << "❌ Ошибка: " << encResult.error() << std::endl;
+                        }
                     }
                 }
 
-                if (success && !data.imagePaths.empty()) {
+                if (successCount > 0) {
                     wxString message = wxString::Format(
-                        _T("✅ Человек успешно добавлен!\n\nID: %d\nФИО: %s\nТип: %s\nФото: %d"),
+                        _T("✅ Человек успешно добавлен!\n\nID: %d\nФИО: %s\nТип: %s\nДобавлено фото: %d"),
                         personId,
                         wxString::FromUTF8(data.fullName),
                         wxString::FromUTF8(data.personType),
-                        (int)data.imagePaths.size()
+                        successCount
                     );
                     wxMessageBox(message, _T("Успех"), wxOK | wxICON_INFORMATION);
                 }
+                else {
+                    wxMessageBox(
+                        wxString::FromUTF8("❌ Не удалось добавить ни одного фото.\nЧеловек не был добавлен."),
+                        _T("Ошибка"),
+                        wxOK | wxICON_ERROR
+                    );
+                    manager.deletePerson(personId);
+                }
 
                 manager.close();
-                // continue - вернёмся в меню
             }
-
             // ============================================================
             // СПИСОК ЛЮДЕЙ
             // ============================================================
@@ -174,7 +257,94 @@ public:
                 }
 
                 manager.close();
-                // continue - вернёмся в меню
+            }
+
+            // ============================================================
+            // УДАЛЕНИЕ ФОТО
+            // ============================================================
+            else if (action == StartupDialog::ACTION_DELETE_ENCODING) {
+                std::cout << "\n=== УДАЛЕНИЕ ФОТО ===\n" << std::endl;
+
+                bigiate::core::PeopleManager manager;
+                auto initResult = manager.init(configPath);
+
+                if (!initResult.has_value()) {
+                    wxMessageBox(
+                        wxString::FromUTF8("Ошибка инициализации:\n" + initResult.error()),
+                        wxString::FromUTF8("Ошибка"),
+                        wxOK | wxICON_ERROR
+                    );
+                    continue;
+                }
+
+                auto personsResult = manager.getAllPersonsInfo(false);
+                if (!personsResult.has_value()) {
+                    wxMessageBox(
+                        wxString::FromUTF8("Ошибка получения списка людей:\n" + personsResult.error()),
+                        wxString::FromUTF8("Ошибка"),
+                        wxOK | wxICON_ERROR
+                    );
+                    manager.close();
+                    continue;
+                }
+
+                const auto& persons = personsResult.value();
+                if (persons.empty()) {
+                    wxMessageBox(_T("Нет зарегистрированных людей"), _T("Информация"), wxOK | wxICON_INFORMATION);
+                    manager.close();
+                    continue;
+                }
+                
+                std::map<int, std::vector<bigiate::db::FaceEncoding>> encodingsMap;
+                for (const auto& p : persons) {
+                    auto encResult = manager.getFaceEncodingsByPerson(p.id);
+                    if (encResult.has_value() && !encResult.value().empty()) {
+                        encodingsMap[p.id] = encResult.value();
+                    }
+                }
+
+                bool hasPhotos = false;
+                for (const auto& item : encodingsMap) {
+                    if (!item.second.empty()) {
+                        hasPhotos = true;
+                        break;
+                    }
+                }
+
+                if (!hasPhotos) {
+                    wxMessageBox(_T("У выбранных людей нет фото для удаления"), _T("Информация"), wxOK | wxICON_INFORMATION);
+                    manager.close();
+                    continue;
+                }
+
+                DeleteEncodingDialog deleteDlg(nullptr, persons, encodingsMap);
+
+                if (deleteDlg.ShowModal() == wxID_OK) {
+                    auto selected = deleteDlg.GetSelected();
+
+                    if (selected.encodingId != -1) {
+                        auto result = manager.deleteEncoding(selected.encodingId);
+
+                        if (result.has_value()) {
+                            wxMessageBox(
+                                wxString::Format(_T("✅ Фото успешно удалено!\n\nЧеловек: %s\nID фото: %d"),
+                                    wxString::FromUTF8(selected.personName),
+                                    selected.encodingId),
+                                _T("Успех"),
+                                wxOK | wxICON_INFORMATION
+                            );
+                        }
+                        else {
+                            wxMessageBox(
+                                wxString::FromUTF8("❌ Ошибка удаления:\n" + result.error()),
+                                _T("Ошибка"),
+                                wxOK | wxICON_ERROR
+                            );
+                        }
+                    }
+                }
+
+                manager.close();
             }
 
             // ============================================================
@@ -197,7 +367,6 @@ public:
 wxIMPLEMENT_APP(BigIateApp);
 
 int main(int argc, char* argv[]) {
-    // Режим шифрования
     if (argc >= 2 && std::string(argv[1]) == "--encrypt") {
         std::string inputFile = (argc >= 3) ? argv[2] : "secrets.yaml";
         std::string password = (argc >= 4) ? argv[3] : "";
@@ -205,7 +374,6 @@ int main(int argc, char* argv[]) {
 
         if (password.empty()) {
             std::cerr << "❌ Требуется пароль!" << std::endl;
-            std::cout << "Использование: BIG_IATE_BR.exe --encrypt <input.yaml> <password> [output.enc]" << std::endl;
             return 1;
         }
 

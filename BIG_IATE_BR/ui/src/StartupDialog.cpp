@@ -7,6 +7,7 @@ enum {
     ID_RUN = 1000,
     ID_ADD_PERSON,
     ID_LIST_PERSONS,
+    ID_DELETE_ENCODING,
     ID_EXIT
 };
 
@@ -14,6 +15,7 @@ wxBEGIN_EVENT_TABLE(StartupDialog, wxDialog)
 EVT_BUTTON(ID_RUN, StartupDialog::OnRun)
 EVT_BUTTON(ID_ADD_PERSON, StartupDialog::OnAddPerson)
 EVT_BUTTON(ID_LIST_PERSONS, StartupDialog::OnListPersons)
+EVT_BUTTON(ID_DELETE_ENCODING, StartupDialog::OnDeleteEncoding)
 EVT_BUTTON(ID_EXIT, StartupDialog::OnExit)
 wxEND_EVENT_TABLE()
 
@@ -55,6 +57,12 @@ StartupDialog::StartupDialog(wxWindow* parent)
     btnList->SetForegroundColour(*wxWHITE);
     btnSizer->Add(btnList, 0, wxALIGN_CENTER | wxBOTTOM, 12);
 
+    // ========== НОВАЯ КНОПКА ==========
+    wxButton* btnDelete = new wxButton(this, ID_DELETE_ENCODING, _T("🗑️ Удалить фото"), wxDefaultPosition, wxSize(220, 40));
+    btnDelete->SetBackgroundColour(wxColour(140, 80, 80));  // Тёмно-красный фон
+    btnDelete->SetForegroundColour(*wxWHITE);              // Белый текст
+    btnSizer->Add(btnDelete, 0, wxALIGN_CENTER | wxBOTTOM, 12);
+
     wxButton* btnExit = new wxButton(this, ID_EXIT, _T("✖ Выход"), wxDefaultPosition, wxSize(220, 40));
     btnExit->SetBackgroundColour(wxColour(100, 60, 60));
     btnExit->SetForegroundColour(*wxWHITE);
@@ -64,6 +72,11 @@ StartupDialog::StartupDialog(wxWindow* parent)
 
     SetSizer(mainSizer);
     Centre();
+}
+
+void StartupDialog::OnDeleteEncoding(wxCommandEvent& event) {
+    m_selectedAction = ACTION_DELETE_ENCODING;
+    EndModal(wxID_OK);
 }
 
 void StartupDialog::OnRun(wxCommandEvent& event) {

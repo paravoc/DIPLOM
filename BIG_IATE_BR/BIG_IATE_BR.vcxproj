@@ -150,6 +150,7 @@
     <ClCompile Include="recognition\src\FaceRecognizer.cpp" />
     <ClCompile Include="ui\src\AddPersonDialog.cpp" />
     <ClCompile Include="ui\src\CameraPanel.cpp" />
+    <ClCompile Include="ui\src\DeleteEncodingDialog.cpp" />
     <ClCompile Include="ui\src\LogsWindow.cpp" />
     <ClCompile Include="ui\src\PhotoCaptureDialog.cpp" />
     <ClCompile Include="ui\src\StartupDialog.cpp" />
@@ -189,6 +190,7 @@
     <ClInclude Include="recognition\include\RecognitionResult.h" />
     <ClInclude Include="ui\include\AddPersonDialog.h" />
     <ClInclude Include="ui\include\CameraPanel.h" />
+    <ClInclude Include="ui\include\DeleteEncodingDialog.h" />
     <ClInclude Include="ui\include\LoginDialog.h" />
     <ClInclude Include="ui\include\LogPanel.h" />
     <ClInclude Include="ui\include\LogsWindow.h" />

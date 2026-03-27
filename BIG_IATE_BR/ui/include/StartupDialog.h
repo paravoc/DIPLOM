@@ -10,6 +10,7 @@ public:
         ACTION_RUN = 0,
         ACTION_ADD_PERSON,
         ACTION_LIST_PERSONS,
+        ACTION_DELETE_ENCODING,  
         ACTION_EXIT
     };
 
@@ -20,6 +21,7 @@ private:
     void OnAddPerson(wxCommandEvent& event);
     void OnListPersons(wxCommandEvent& event);
     void OnExit(wxCommandEvent& event);
+    void OnDeleteEncoding(wxCommandEvent& event);
 
     Action m_selectedAction = ACTION_EXIT;
 

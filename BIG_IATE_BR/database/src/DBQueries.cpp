@@ -506,6 +506,11 @@ namespace bigiate::db {
     // ПОИСК ПО ЭМБЕДДИНГУ (PGVECTOR)
     // ============================================================
 
+    std::expected<void, std::string> DBQueries::deleteFaceEncoding(int encodingId) {
+        std::string query = "DELETE FROM face_encodings WHERE id = " + std::to_string(encodingId);
+        return m_executor->execute(query);
+    }
+
     std::expected<std::vector<MatchResult>, std::string> DBQueries::findPersonByEmbedding(
         const std::vector<float>& embedding,
         float threshold,

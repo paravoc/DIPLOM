@@ -14,6 +14,8 @@ namespace bigiate::db {
         explicit DBQueries(std::shared_ptr<DBConnectionPool> pool);
         ~DBQueries() = default;
 
+        [[nodiscard]] std::expected<void, std::string> deleteFaceEncoding(int encodingId);
+
         // ========== ЛЮДИ ==========
         [[nodiscard]] std::expected<std::vector<Person>, std::string> getAllPersons(bool onlyActive = true);
         [[nodiscard]] std::expected<Person, std::string> getPersonById(int id);

@@ -177,6 +177,22 @@ namespace bigiate::core {
         return m_pimpl->dbQueries->updatePerson(p);
     }
 
+    std::expected<void, std::string> PeopleManager::deleteEncoding(int encodingId) {
+        if (!m_initialized) {
+            return std::unexpected("PeopleManager not initialized");
+        }
+        return m_pimpl->dbQueries->deleteFaceEncoding(encodingId);
+    }
+
+   
+
+    std::expected<std::vector<db::FaceEncoding>, std::string> PeopleManager::getFaceEncodingsByPerson(int personId) {
+        if (!m_initialized) {
+            return std::unexpected("PeopleManager not initialized");
+        }
+        return m_pimpl->dbQueries->getFaceEncodingsByPerson(personId);
+    }
+
     // ============================================================
     // ДОБАВЛЕНИЕ ИЗ ОДНОГО ФОТО
     // ============================================================
@@ -543,6 +559,42 @@ namespace bigiate::core {
 
         return hardDeletePerson(personId);
     }
+    // ========== ДЛЯ ДОБАВЛЕНИЯ ЧЕЛОВЕКА С НЕСКОЛЬКИМИ ФОТО ==========
+
+    std::expected<int, std::string> PeopleManager::addPersonOnly(const db::Person& person) {
+        if (!m_initialized) {
+            return std::unexpected("PeopleManager not initialized");
+        }
+        return m_pimpl->dbQueries->addPerson(person);
+    }
+
+    std::expected<void, std::string> PeopleManager::addEncodingToPerson(int personId, const db::FaceEncoding& encoding) {
+        if (!m_initialized) {
+            return std::unexpected("PeopleManager not initialized");
+        }
+        db::FaceEncoding newEncoding = encoding;
+        newEncoding.personId = personId;
+        auto result = m_pimpl->dbQueries->addFaceEncoding(newEncoding);
+        if (!result.has_value()) {
+            return std::unexpected(result.error());
+        }
+        return {};
+    }
+
+    std::expected<cv::Mat, std::string> PeopleManager::loadImageFromPath(const std::string& path) {
+        return loadImage(path);
+    }
+
+    // ========== ДЛЯ УДАЛЕНИЯ ФОТО ==========
+
+    std::expected<std::vector<db::Person>, std::string> PeopleManager::getAllPersonsInfo(bool onlyActive) {
+        if (!m_initialized) {
+            return std::unexpected("PeopleManager not initialized");
+        }
+        return m_pimpl->dbQueries->getAllPersons(onlyActive);
+    }
+
+
 
     // ============================================================
     // ЗАКРЫТЬ
