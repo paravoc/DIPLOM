@@ -81,6 +81,7 @@ namespace bigiate::core {
     //==============================================================================
     bool AppCore::loadConfig(const std::string& path) {
         std::cout << "📁 Загрузка конфига: " << path << std::endl;
+        std::cout << "   Файл существует: " << (std::filesystem::exists(path) ? "ДА" : "НЕТ") << std::endl;
 
         auto result = config::LoadConfig(path);
         if (!result.has_value()) {
