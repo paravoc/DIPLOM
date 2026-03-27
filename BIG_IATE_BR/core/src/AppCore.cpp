@@ -271,15 +271,20 @@ namespace bigiate::core {
             std::cout << "   Открываю USB камеру: device " << device << std::endl;
         }
         else {
-            cap.open(source);
-            std::cout << "   Открываю RTSP камеру: " << source << std::endl;
+            // HTTP MJPEG или RTSP — используем FFMPEG
+            cap.open(source, cv::CAP_FFMPEG);
+            std::cout << "   Открываю камеру: " << source << std::endl;
         }
 
         if (cap.isOpened()) {
             cameraOnline = true;
+
+            // Настройки для уменьшения задержки
+            cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
             cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
             cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
             cap.set(cv::CAP_PROP_FPS, fps);
+
             std::cout << "   ✅ Камера " << cameraId << " подключена!" << std::endl;
 
             wxTheApp->CallAfter([this, cameraId]() {
@@ -439,7 +444,7 @@ namespace bigiate::core {
                         cap.open(device);
                     }
                     else {
-                        cap.open(source);
+                        cap.open(source, cv::CAP_FFMPEG);
                     }
 
                     if (cap.isOpened()) {
@@ -447,6 +452,7 @@ namespace bigiate::core {
                         cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
                         cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
                         cap.set(cv::CAP_PROP_FPS, fps);
+                        cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
                         std::cout << "   ✅ Камера " << cameraId << " переподключена!" << std::endl;
 
                         wxTheApp->CallAfter([this, cameraId]() {
