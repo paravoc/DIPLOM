@@ -1,7 +1,14 @@
 //==============================================================================
-// FaceTurnstile - Print Configuration Utilities
+// BIG IATE - Print Configuration Utilities Implementation
 // print_config_utils.cpp
 //==============================================================================
+// Описание: Реализация вывода конфигурации в консоль.
+//
+// Автор: paravoc
+// Дата: 21.03.2026
+// Версия: 1.0.0
+//==============================================================================
+
 #include "../include/print_config_utils.h"
 #include <iomanip>
 
@@ -78,7 +85,6 @@ namespace bigiate::config {
     void PrintRecognitionConfig(const RecognitionConfig& recognition) {
         std::cout << "\n=== Recognition Configuration ===\n";
 
-        // Detector
         std::cout << "\n--- Detector (SSD) ---\n";
         std::cout << "Type: " << recognition.detector.type << "\n";
         std::cout << "Model path: " << recognition.detector.model_path << "\n";
@@ -94,7 +100,6 @@ namespace bigiate::config {
         }
         std::cout << "Batch size: " << recognition.detector.batch_size << "\n";
 
-        // Extractor
         std::cout << "\n--- Extractor (ArcFace) ---\n";
         std::cout << "Type: " << recognition.extractor.type << "\n";
         std::cout << "Model path: " << recognition.extractor.model_path << "\n";
@@ -107,25 +112,23 @@ namespace bigiate::config {
         }
         std::cout << "Batch size: " << recognition.extractor.batch_size << "\n";
 
-        // Matching
         std::cout << "\n--- Matching ---\n";
         std::cout << "Threshold: " << recognition.matching.threshold << "\n";
         std::cout << "Max distance: " << recognition.matching.max_distance << "\n";
         std::cout << "Top K: " << recognition.matching.top_k << "\n";
         std::cout << "Use index: " << (recognition.matching.use_index ? "true" : "false") << "\n";
 
-        // Anti-passback
         std::cout << "\n--- Anti-passback ---\n";
         std::cout << "Enabled: " << (recognition.anti_passback.enabled ? "true" : "false") << "\n";
         std::cout << "Cooldown seconds: " << recognition.anti_passback.cooldown_seconds << "\n";
         std::cout << "Strict mode: " << (recognition.anti_passback.strict_mode ? "true" : "false") << "\n";
 
-        // Performance
         std::cout << "\n--- Performance ---\n";
         std::cout << "Skip frames: " << recognition.performance.skip_frames << "\n";
         std::cout << "Max faces per frame: " << recognition.performance.max_faces_per_frame << "\n";
         std::cout << "Parallel detection: " << (recognition.performance.parallel_detection ? "true" : "false") << "\n";
         std::cout << "Queue size: " << recognition.performance.queue_size << "\n";
+        std::cout << "Min face size: " << recognition.performance.min_face_size << "px\n";
     }
 
     void PrintLoggingConfig(const LoggingConfig& logging) {

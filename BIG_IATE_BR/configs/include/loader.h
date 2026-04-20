@@ -1,33 +1,48 @@
-// src/config/include/config/loader.h
+//==============================================================================
+// BIG IATE - Configuration Loader
+// loader.h
+//==============================================================================
+// Описание: Загрузка и парсинг YAML-конфигурации.
+//           Основная функция LoadConfig() загружает весь конфиг и секреты.
+//
+// Автор: paravoc
+// Дата: 21.03.2026
+// Версия: 1.0.0
+//==============================================================================
+
 #pragma once
 
-#include <yaml-cpp/yaml.h>  // <--- ЭТО ДОЛЖНО БЫТЬ ПЕРВЫМ ИЛИ РАНЬШЕ
-
-#include "types.h"
-#include "macros.h"
-
+#include <yaml-cpp/yaml.h>
 #include <expected>
 #include <string>
 #include <filesystem>
 
+#include "types.h"
+#include "macros.h"
+
 namespace bigiate::config {
 
-	// 1. Главная функция - загружает всё
+	//==============================================================================
+	// ГЛАВНЫЕ ФУНКЦИИ
+	//==============================================================================
+
+	// Загружает весь конфиг (версия, камеры, БД, распознавание, логи, безопасность)
 	[[nodiscard]] std::expected<LoadResult, std::string>
 		LoadConfig(const std::string& config_path);
 
-	// 2. Для тестов - только версию
+	// Загружает только версию (для быстрой проверки)
 	[[nodiscard]] std::expected<Version, std::string>
 		LoadVersionOnly(const std::string& config_path);
 
-	// 3. Проверка файла
+	// Проверяет существование файла
 	[[nodiscard]] bool
 		ConfigFileExists(const std::string& config_path);
 
-	// 4. Для отладки - распечатать конфиг
-	void DumpConfig(const ServerConfig& config);
 
-	// Парсинг отдельных секций
+	//==============================================================================
+	// ПАРСИНГ ОТДЕЛЬНЫХ СЕКЦИЙ
+	//==============================================================================
+
 	[[nodiscard]] std::expected<CameraConfig, std::string>
 		ParseCamera(const YAML::Node& node);
 
@@ -46,7 +61,10 @@ namespace bigiate::config {
 	[[nodiscard]] std::expected<SecurityConfig, std::string>
 		ParseSecurity(const YAML::Node& node);
 
-	// Валидация
+	//==============================================================================
+	// ВАЛИДАЦИЯ
+	//==============================================================================
+
 	[[nodiscard]] std::expected<void, std::string>
 		ValidateConfig(const ServerConfig& config);
 

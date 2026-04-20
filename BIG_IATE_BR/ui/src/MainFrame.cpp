@@ -2,6 +2,7 @@
 #include "../include/CameraPanel.h"
 #include "../include/LogPanel.h"
 #include "../include/StatsPanel.h"
+#include "../include/LogsWindow.h"
 #include <iostream>
 
 #define _T(str) wxString::FromUTF8(str)
@@ -10,6 +11,7 @@ wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
 EVT_MENU(wxID_EXIT, MainFrame::OnExit)
 EVT_CLOSE(MainFrame::OnClose)
 EVT_TIMER(wxID_ANY, MainFrame::OnUpdateTime)
+EVT_MENU(wxID_ANY, MainFrame::onShowLogs)
 wxEND_EVENT_TABLE()
 
 MainFrame::MainFrame()
@@ -34,14 +36,26 @@ MainFrame::~MainFrame() {
     }
 }
 
+void MainFrame::setDBQueries(std::shared_ptr<bigiate::db::DBQueries> dbQueries) {
+    m_dbQueries = dbQueries;
+}
+
 void MainFrame::SetupUI() {
     std::cout << "📐 SetupUI начат" << std::endl;
 
     // Меню
     wxMenuBar* menuBar = new wxMenuBar();
+
+    // Меню "Файл"
     wxMenu* fileMenu = new wxMenu();
     fileMenu->Append(wxID_EXIT, _T("Выход\tAlt+F4"));
     menuBar->Append(fileMenu, _T("Файл"));
+
+    // Меню "Журнал"
+    wxMenu* logsMenu = new wxMenu();
+    logsMenu->Append(wxID_ANY, _T("📋 Журнал событий\tCtrl+L"), _T("Показать журнал"));
+    menuBar->Append(logsMenu, _T("Журнал"));
+
     SetMenuBar(menuBar);
 
     // Статус бар
@@ -93,6 +107,20 @@ void MainFrame::UpdateStats() {
             m_logPanel->GetUnknownCount(),
             m_logPanel->GetSystemCount()
         );
+    }
+}
+
+void MainFrame::onShowLogs(wxCommandEvent& event) {
+    if (!m_logsWindow && m_dbQueries) {
+        m_logsWindow = new bigiate::ui::LogsWindow(this, m_dbQueries);
+        m_logsWindow->Show(true);
+    }
+    else if (m_logsWindow) {
+        m_logsWindow->Show(true);
+        m_logsWindow->Raise();
+    }
+    else {
+        wxMessageBox(_T("База данных не инициализирована"), _T("Ошибка"), wxOK | wxICON_ERROR);
     }
 }
 

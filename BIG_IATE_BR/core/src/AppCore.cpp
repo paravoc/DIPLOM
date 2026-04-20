@@ -1,4 +1,14 @@
-// core/src/AppCore.cpp
+//==============================================================================
+// BIG IATE - Core Application Manager Implementation
+// AppCore.cpp
+//==============================================================================
+// Описание: Реализация главного класса управления приложением.
+//
+// Автор: paravoc
+// Дата: 21.03.2026
+// Версия: 1.0.0
+//==============================================================================
+
 #include "../../core/include/AppCore.h"
 #include "../../configs/include/loader.h"
 #include "../../ui/include/MainFrame.h"
@@ -7,22 +17,24 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <iomanip>  // для std::fixed, std::setprecision
 
 namespace bigiate::core {
 
-    // ============================================================
-    // СОЗДАНИЕ ЗАГЛУШКИ "NO SIGNAL"
-    // ============================================================
-
+    //==============================================================================
+    // ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: СОЗДАНИЕ ЗАГЛУШКИ "NO SIGNAL"
+    //==============================================================================
     static wxImage createNoSignalImage(int width, int height, int frameCount) {
         wxImage img(width, height);
 
+        // Тёмно-серый фон
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
                 img.SetRGB(x, y, 40, 40, 50);
             }
         }
 
+        // Мигающая надпись (каждые 30 кадров меняет цвет)
         bool blink = (frameCount / 30) % 2;
         int startX = width / 2 - 80;
         int endX = width / 2 + 80;
@@ -40,10 +52,9 @@ namespace bigiate::core {
         return img;
     }
 
-    // ============================================================
-    // ГЛАВНАЯ ФУНКЦИЯ
-    // ============================================================
-
+    //==============================================================================
+    // ГЛАВНАЯ ФУНКЦИЯ ЗАПУСКА
+    //==============================================================================
     bool AppCore::run(const std::string& configPath) {
         std::cout << "========================================" << std::endl;
         std::cout << "=== BIG IATE - СИСТЕМА КОНТРОЛЯ ДОСТУПА ===" << std::endl;
@@ -65,12 +76,12 @@ namespace bigiate::core {
         return true;
     }
 
-    // ============================================================
-    // ЗАГРУЗКА КОНФИГА
-    // ============================================================
-
+    //==============================================================================
+    // ЗАГРУЗКА КОНФИГУРАЦИИ
+    //==============================================================================
     bool AppCore::loadConfig(const std::string& path) {
         std::cout << "📁 Загрузка конфига: " << path << std::endl;
+        std::cout << "   Файл существует: " << (std::filesystem::exists(path) ? "ДА" : "НЕТ") << std::endl;
 
         auto result = config::LoadConfig(path);
         if (!result.has_value()) {
@@ -84,7 +95,9 @@ namespace bigiate::core {
         return true;
     }
 
-
+    //==============================================================================
+    // ИНИЦИАЛИЗАЦИЯ РАСПОЗНАВАНИЯ
+    //==============================================================================
     bool AppCore::initRecognition() {
         std::cout << "\n🧠 Инициализация распознавания..." << std::endl;
 
@@ -104,10 +117,9 @@ namespace bigiate::core {
         return true;
     }
 
-    // ============================================================
-    // ИНИЦИАЛИЗАЦИЯ БД
-    // ============================================================
-
+    //==============================================================================
+    // ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ
+    //==============================================================================
     bool AppCore::initDatabase() {
         std::cout << "\n📊 Инициализация базы данных..." << std::endl;
 
@@ -117,11 +129,11 @@ namespace bigiate::core {
         std::cout << "   БД: " << dbCfg.name << std::endl;
 
         std::string dbPassword = m_secrets.database_password;
+
         if (dbPassword.empty()) {
             std::cerr << "⚠️ Database password is empty!" << std::endl;
             return false;
         }
-
 
         try {
             m_dbPool = std::make_shared<db::DBConnectionPool>(dbCfg, dbPassword, 2, 4);
@@ -147,10 +159,9 @@ namespace bigiate::core {
         }
     }
 
-    // ============================================================
+    //==============================================================================
     // СОЗДАНИЕ GUI
-    // ============================================================
-
+    //==============================================================================
     bool AppCore::createGUI() {
         std::cout << "\n🖥️ Создание интерфейса..." << std::endl;
 
@@ -160,6 +171,8 @@ namespace bigiate::core {
             return false;
         }
 
+        // Передаём DBQueries в MainFrame для доступа к логам
+        m_frame->setDBQueries(m_dbQueries);
         m_frame->SetCameras(m_configResult.config.cameras);
         m_frame->Show(true);
         m_frame->Raise();
@@ -168,10 +181,9 @@ namespace bigiate::core {
         return true;
     }
 
-    // ============================================================
+    //==============================================================================
     // ЗАПУСК КАМЕР
-    // ============================================================
-
+    //==============================================================================
     bool AppCore::startCameras() {
         std::cout << "\n📷 Запуск камер..." << std::endl;
 
@@ -196,10 +208,9 @@ namespace bigiate::core {
         return started > 0;
     }
 
-    // ============================================================
-    // ОБРАБОТЧИК КАМЕРЫ (реальный захват)
-    // ============================================================
-
+    //==============================================================================
+    // ОБРАБОТЧИК КАМЕРЫ (основной цикл захвата и распознавания)
+    //==============================================================================
     void AppCore::cameraWorker(int cameraId, const config::CameraConfig& cfg) {
         std::cout << "🎥 Поток камеры " << cameraId << " запущен" << std::endl;
 
@@ -209,7 +220,7 @@ namespace bigiate::core {
         int skipFrames = m_configResult.config.recognition.performance.skip_frames;
         int frameCount = 0;
 
-        // Формируем источник с учётом секретов
+        // Формируем источник с учётом секретов (авторизация)
         std::string source;
         bool useAuth = false;
         std::string username;
@@ -260,15 +271,20 @@ namespace bigiate::core {
             std::cout << "   Открываю USB камеру: device " << device << std::endl;
         }
         else {
-            cap.open(source);
-            std::cout << "   Открываю RTSP камеру: " << source << std::endl;
+            // HTTP MJPEG или RTSP — используем FFMPEG
+            cap.open(source, cv::CAP_FFMPEG);
+            std::cout << "   Открываю камеру: " << source << std::endl;
         }
 
         if (cap.isOpened()) {
             cameraOnline = true;
+
+            // Настройки для уменьшения задержки
+            cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
             cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
             cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
             cap.set(cv::CAP_PROP_FPS, fps);
+
             std::cout << "   ✅ Камера " << cameraId << " подключена!" << std::endl;
 
             wxTheApp->CallAfter([this, cameraId]() {
@@ -282,6 +298,7 @@ namespace bigiate::core {
                 });
         }
 
+        // Основной цикл обработки кадров
         while (m_running) {
             if (cameraOnline) {
                 cv::Mat frame;
@@ -310,13 +327,12 @@ namespace bigiate::core {
                 frameCount++;
 
                 // ============================================================
-                // РАСПОЗНАВАНИЕ ЛИЦ
+                // РАСПОЗНАВАНИЕ ЛИЦ (каждый skipFrames-й кадр)
                 // ============================================================
                 if (m_faceRecognizer && (frameCount % skipFrames == 0)) {
                     auto results = m_faceRecognizer->recognize(frame, cameraId, 0.75f);
 
                     for (const auto& result : results) {
-                        // Рисуем рамку вокруг лица
                         if (result.match.has_value()) {
                             const auto& match = result.match.value();
 
@@ -330,13 +346,13 @@ namespace bigiate::core {
                                 cv::Point(result.detection.bbox.x, result.detection.bbox.y - 5),
                                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
 
+                            // Выводим в консоль с коэффициентом похожести
                             std::cout << "👤 Камера " << cameraId
                                 << ": " << match.fullName
-                                << " (" << match.similarity * 100 << "%)" << std::endl;
+                                << " (СХОЖЕСТЬ: " << std::fixed << std::setprecision(2)
+                                << match.similarity * 100 << "%)" << std::endl;
 
-                            // ============================================================
-                            // ЗАПИСЬ В ЖУРНАЛ
-                            // ============================================================
+                            // Запись в журнал
                             if (m_dbQueries) {
                                 db::AccessLog log;
                                 log.personId = match.personId;
@@ -347,9 +363,6 @@ namespace bigiate::core {
                                 log.accessReason = result.reason;
                                 log.similarityScore = match.similarity;
                                 log.encodingId = match.encodingId;
-
-                                // Сохраняем фото лица (опционально)
-                                // log.faceImagePath = saveFaceImage(result.detection.faceROI);
 
                                 auto logResult = m_dbQueries->addAccessLog(log);
                                 if (!logResult.has_value()) {
@@ -365,18 +378,27 @@ namespace bigiate::core {
                                 cv::Point(result.detection.bbox.x, result.detection.bbox.y - 5),
                                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
 
-                            std::cout << "❓ Камера " << cameraId << ": Неизвестное лицо" << std::endl;
+                            // Выводим в консоль с лучшим совпадением
+                            std::cout << "❓ Камера " << cameraId << ": Неизвестное лицо";
+                            if (result.bestMatchSimilarity > 0) {
+                                std::cout << " (ЛУЧШЕЕ СОВПАДЕНИЕ: " << std::fixed << std::setprecision(2)
+                                    << result.bestMatchSimilarity * 100 << "%)";
+                            }
+                            else {
+                                std::cout << " (нет совпадений в БД)";
+                            }
+                            std::cout << std::endl;
 
                             // Запись для неизвестного
                             if (m_dbQueries) {
                                 db::AccessLog log;
-                                log.personId = 0;  // 0 = неизвестный
+                                log.personId = 0;
                                 log.cameraId = cameraId;
                                 log.gateId = "gate_" + std::to_string(cameraId);
                                 log.direction = "enter";
                                 log.accessGranted = false;
                                 log.accessReason = "Person not recognized";
-                                log.similarityScore = 0.0f;
+                                log.similarityScore = result.bestMatchSimilarity;
 
                                 auto logResult = m_dbQueries->addAccessLog(log);
                                 if (!logResult.has_value()) {
@@ -387,7 +409,7 @@ namespace bigiate::core {
                     }
                 }
 
-                // Конвертируем cv::Mat → wxImage для GUI
+                // Отправка кадра в GUI
                 cv::Mat rgb;
                 cv::cvtColor(frame, rgb, cv::COLOR_BGR2RGB);
                 wxImage wxFrame(rgb.cols, rgb.rows, rgb.data, true);
@@ -422,7 +444,7 @@ namespace bigiate::core {
                         cap.open(device);
                     }
                     else {
-                        cap.open(source);
+                        cap.open(source, cv::CAP_FFMPEG);
                     }
 
                     if (cap.isOpened()) {
@@ -430,6 +452,7 @@ namespace bigiate::core {
                         cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
                         cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
                         cap.set(cv::CAP_PROP_FPS, fps);
+                        cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
                         std::cout << "   ✅ Камера " << cameraId << " переподключена!" << std::endl;
 
                         wxTheApp->CallAfter([this, cameraId]() {
@@ -449,16 +472,16 @@ namespace bigiate::core {
         std::cout << "🛑 Поток камеры " << cameraId << " остановлен" << std::endl;
     }
 
-
-
-
+    //==============================================================================
+    // ДЕСТРУКТОР
+    //==============================================================================
     AppCore::~AppCore() {
-        stop();  // вызываем остановку при уничтожении
+        stop();
     }
-    // ============================================================
-    // ОСТАНОВКА
-    // ============================================================
 
+    //==============================================================================
+    // ОСТАНОВКА ВСЕХ ПОТОКОВ
+    //==============================================================================
     void AppCore::stop() {
         if (!m_running) return;
 

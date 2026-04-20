@@ -1,4 +1,14 @@
-// core/src/SecretsManager.cpp
+//==============================================================================
+// BIG IATE - Secrets Manager Implementation
+// SecretsManager.cpp
+//==============================================================================
+// Описание: Реализация загрузки и парсинга зашифрованных секретов.
+//
+// Автор: paravoc
+// Дата: 21.03.2026
+// Версия: 1.0.0
+//==============================================================================
+
 #include "../include/SecretsManager.h"
 #include "../include/SecretsEncryption.h"
 #include <yaml-cpp/yaml.h>
@@ -8,11 +18,15 @@
 
 namespace bigiate::secrets {
 
+    //==============================================================================
+    // ПАРСИНГ YAML В СТРУКТУРУ SECRETS
+    //==============================================================================
     std::expected<config::Secrets, std::string> SecretsManager::parseYaml(const std::string& yaml) {
         try {
             YAML::Node root = YAML::Load(yaml);
             config::Secrets secrets;
 
+            // Пароль базы данных (обязательный)
             if (root["database_password"] && root["database_password"].IsScalar()) {
                 secrets.database_password = root["database_password"].as<std::string>();
             }
@@ -20,6 +34,7 @@ namespace bigiate::secrets {
                 return std::unexpected("Missing database_password in secrets");
             }
 
+            // Пароли для камер
             if (root["cameras"] && root["cameras"].IsMap()) {
                 for (const auto& cam : root["cameras"]) {
                     int camId = cam.first.as<int>();
@@ -36,6 +51,7 @@ namespace bigiate::secrets {
                 }
             }
 
+            // Пароль бастиона (опциональный)
             if (root["bastion_password"] && root["bastion_password"].IsScalar()) {
                 secrets.bastion_password = root["bastion_password"].as<std::string>();
             }
@@ -48,11 +64,14 @@ namespace bigiate::secrets {
         }
     }
 
+    //==============================================================================
+    // ЗАГРУЗКА СЕКРЕТОВ ИЗ ЗАШИФРОВАННОГО ФАЙЛА
+    //==============================================================================
     std::expected<config::Secrets, std::string> SecretsManager::loadFromFile(
         const std::string& path,
         const std::string& masterPassword) {
 
-        // Читаем файл
+        // Читаем зашифрованный файл
         std::ifstream in(path, std::ios::binary);
         if (!in.is_open()) {
             return std::unexpected("Cannot open secrets file: " + path);
@@ -73,6 +92,9 @@ namespace bigiate::secrets {
         return parseYaml(decrypted.value());
     }
 
+    //==============================================================================
+    // СОЗДАНИЕ ШАБЛОНА СЕКРЕТОВ
+    //==============================================================================
     std::expected<void, std::string> SecretsManager::createTemplate(const std::string& path) {
         std::ofstream file(path);
         if (!file.is_open()) {

@@ -13,6 +13,8 @@
 #include "DBMacros.h"
 #include "../../configs/include/types.h"
 
+
+
 namespace bigiate::db {
 
     // Информация о соединении

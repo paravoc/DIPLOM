@@ -14,6 +14,8 @@ namespace bigiate::db {
         explicit DBQueries(std::shared_ptr<DBConnectionPool> pool);
         ~DBQueries() = default;
 
+        [[nodiscard]] std::expected<void, std::string> deleteFaceEncoding(int encodingId);
+
         // ========== ЛЮДИ ==========
         [[nodiscard]] std::expected<std::vector<Person>, std::string> getAllPersons(bool onlyActive = true);
         [[nodiscard]] std::expected<Person, std::string> getPersonById(int id);
@@ -40,6 +42,12 @@ namespace bigiate::db {
         [[nodiscard]] std::expected<std::vector<AccessLog>, std::string> getRecentLogs(int limit = 100);
         [[nodiscard]] std::expected<std::vector<AccessLog>, std::string> getLogsByPerson(int personId, int limit = 100);
 
+        [[nodiscard]] std::expected<std::vector<AccessLog>, std::string> getLogsByDateRange(
+            const std::string& from,
+            const std::string& to,
+            int limit = 1000
+        );
+
         // ========== СТАТИСТИКА ==========
         struct Stats {
             int totalPersons = 0;
@@ -55,6 +63,7 @@ namespace bigiate::db {
         [[nodiscard]] std::expected<void, std::string> testConnection();
 
     private:
+        [[nodiscard]] std::expected<void, std::string> execute(const std::string& query);
         std::shared_ptr<ThreadSafeExecutor> m_executor;
 
         // Парсеры

@@ -90,6 +90,17 @@ namespace bigiate::recognition {
                 );
 
                 if (matches.has_value() && !matches->empty()) {
+                    if (matches.has_value() && !matches->empty()) {
+                        std::cout << "🔍 [DEBUG] Найдено совпадений: " << matches->size()
+                            << ", лучшее: " << matches->front().similarity * 100 << "%"
+                            << " (имя: " << matches->front().fullName << ")"
+                            << std::endl;
+                        result.bestMatchSimilarity = matches->front().similarity;
+                    }
+                    else {
+                        std::cout << "🔍 [DEBUG] Совпадений не найдено" << std::endl;
+                        result.bestMatchSimilarity = 0.0f;
+                    }
                     const auto& dbMatch = matches->front();
 
                     Match match;

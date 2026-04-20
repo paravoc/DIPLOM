@@ -135,10 +135,10 @@
     <ClCompile Include="configs\src\loader.cpp" />
     <ClCompile Include="configs\src\print_config_utils.cpp" />
     <ClCompile Include="core\src\AppCore.cpp" />
+    <ClCompile Include="core\src\PeopleManager.cpp" />
     <ClCompile Include="core\src\SecretsEncryption.cpp" />
     <ClCompile Include="core\src\SecretsInitializer.cpp" />
     <ClCompile Include="core\src\SecretsManager.cpp" />
-    <ClCompile Include="database\src\DBConnection.cpp" />
     <ClCompile Include="database\src\DBConnectionPool.cpp" />
     <ClCompile Include="database\src\DBMacros.cpp" />
     <ClCompile Include="database\src\DBModels.cpp" />
@@ -148,7 +148,12 @@
     <ClCompile Include="recognition\src\FaceDetector.cpp" />
     <ClCompile Include="recognition\src\FaceExtractor.cpp" />
     <ClCompile Include="recognition\src\FaceRecognizer.cpp" />
+    <ClCompile Include="ui\src\AddPersonDialog.cpp" />
     <ClCompile Include="ui\src\CameraPanel.cpp" />
+    <ClCompile Include="ui\src\DeleteEncodingDialog.cpp" />
+    <ClCompile Include="ui\src\LogsWindow.cpp" />
+    <ClCompile Include="ui\src\PhotoCaptureDialog.cpp" />
+    <ClCompile Include="ui\src\StartupDialog.cpp" />
     <ClCompile Include="ui\src\StatsPanel.cpp" />
     <ClCompile Include="ui\src\LogPanel.cpp" />
     <ClCompile Include="ui\src\MainFrame.cpp" />
@@ -169,11 +174,11 @@
     <ClInclude Include="configs\include\types.h" />
     <ClInclude Include="configs\include\macros.h" />
     <ClInclude Include="core\include\AppCore.h" />
+    <ClInclude Include="core\include\PeopleManager.h" />
     <ClInclude Include="core\include\SecretsEncryption.h" />
     <ClInclude Include="core\include\SecretsInitializer.h" />
     <ClInclude Include="core\include\SecretsMacros.h" />
     <ClInclude Include="core\include\SecretsManager.h" />
-    <ClInclude Include="database\include\DBConnection.h" />
     <ClInclude Include="database\include\DBConnectionPool.h" />
     <ClInclude Include="database\include\DBMacros.h" />
     <ClInclude Include="database\include\DBModels.h" />
@@ -183,10 +188,15 @@
     <ClInclude Include="recognition\include\FaceExtractor.h" />
     <ClInclude Include="recognition\include\FaceRecognizer.h" />
     <ClInclude Include="recognition\include\RecognitionResult.h" />
+    <ClInclude Include="ui\include\AddPersonDialog.h" />
     <ClInclude Include="ui\include\CameraPanel.h" />
+    <ClInclude Include="ui\include\DeleteEncodingDialog.h" />
     <ClInclude Include="ui\include\LoginDialog.h" />
     <ClInclude Include="ui\include\LogPanel.h" />
+    <ClInclude Include="ui\include\LogsWindow.h" />
     <ClInclude Include="ui\include\MainFrame.h" />
+    <ClInclude Include="ui\include\PhotoCaptureDialog.h" />
+    <ClInclude Include="ui\include\StartupDialog.h" />
     <ClInclude Include="ui\include\StatsPanel.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

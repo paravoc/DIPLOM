@@ -1,22 +1,15 @@
 //==============================================================================
-// FaceTurnstile - Configuration Module
+// BIG IATE - Configuration Macros
 // macros.h
 //==============================================================================
+// Описание: Макросы для упрощения парсинга YAML, проверок и работы с памятью.
+//           Все макросы возвращают std::unexpected при ошибке.
 //
-// Core macros for configuration processing:
-// - Error checking and validation (CHECK, VALIDATE)
-// - YAML node access helpers (GET_YAML, GET_YAML_OR)
-// - Memory security (SECURE_ZERO, SECURE_STRING)
-// - Compiler hints and portability (LIKELY, DEPRECATED)
-// - Debug utilities (DUMP, ASSERT)
-//
-// All validation macros return std::unexpected on failure,
-// enabling clean error propagation without exceptions.
-//
-// Author:  paravoc
-// Created: 19.03.2026
-// Version: 1.0.0
+// Автор: paravoc
+// Дата: 21.03.2026
+// Версия: 1.0.0
 //==============================================================================
+
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -24,17 +17,22 @@
 #include <filesystem>
 #include <expected>
 #include <string>
+#include <yaml-cpp/yaml.h>
 
-// Для обязательных полей
+//==============================================================================
+// ПАРСИНГ YAML
+//==============================================================================
+
+// Обязательное поле (если отсутствует или не скаляр — ошибка)
 #define PARSE_REQUIRED(node, field, member, type) \
     do { \
         if (!node[field] || !node[field].IsScalar()) { \
-            return std::unexpected("Database missing required field: '" field "'"); \
+            return std::unexpected("Missing required field: '" field "'"); \
         } \
         db.member = node[field].as<type>(); \
     } while(0)
 
-// Для опциональных полей с дефолтом
+// Опциональное поле с значением по умолчанию
 #define PARSE_OPTIONAL(obj, node, field, member, type, default_value) \
     do { \
         if (node[#field] && node[#field].IsScalar()) { \
@@ -44,16 +42,7 @@
         } \
     } while(0)
 
-// Для опциональных полей без дефолта (оставляем как есть)
-#define PARSE_OPTIONAL_NODEFAULT(node, field, member, type) \
-    do { \
-        if (node[#field] && node[#field].IsScalar()) { \
-            db.member = node[#field].as<type>(); \
-        } \
-    } while(0)
-
-
-// Для обязательных секций в LoadConfig
+// Обязательная секция в LoadConfig
 #define PARSE_REQUIRED_SECTION(section_name, parse_func, target_field) \
     do { \
         if (root[#section_name]) { \
@@ -67,7 +56,7 @@
         } \
     } while(0)
 
-// Для опциональных секций в LoadConfig
+// Опциональная секция в LoadConfig
 #define PARSE_OPTIONAL_SECTION(section_name, parse_func, target_field) \
     do { \
         if (root[#section_name]) { \
@@ -79,7 +68,7 @@
         } \
     } while(0)
 
-// Для парсинга простых скалярных полей
+// Скалярное поле (опционально)
 #define PARSE_SCALAR_FIELD(field_name, target_field, type) \
     do { \
         if (root[#field_name] && root[#field_name].IsScalar()) { \
@@ -87,7 +76,7 @@
         } \
     } while(0)
 
-// Для парсинга массива камер
+// Массив камер
 #define PARSE_CAMERAS() \
     do { \
         if (root["cameras"] && root["cameras"].IsSequence()) { \
@@ -107,6 +96,11 @@
         } \
     } while(0)
 
+//==============================================================================
+// ПРОВЕРКИ
+//==============================================================================
+
+// Проверка существования файла
 #define CHECK_FILE(path, msg) \
     do { \
         if (!std::filesystem::exists(path)) { \
@@ -114,53 +108,13 @@
         } \
     } while(0)
 
-
-// Инициализация логгера (вызвать один раз в main)
-#define CONFIG_INIT_LOGGER() \
+// Проверка на пустую строку
+#define CHECK_EMPTY(str, msg) \
     do { \
-        auto console = spdlog::stdout_color_mt("config"); \
-        console->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); \
-        spdlog::set_default_logger(console); \
-    } while(0)
-
-// Версионирование API модуля
-#define CONFIG_API_VERSION_MAJOR 1
-#define CONFIG_API_VERSION_MINOR 0
-#define CONFIG_API_VERSION_PATCH 0
-
-// ====================================================
-// Макросы для логирования
-// ====================================================
-#define CONFIG_LOG_DEBUG(msg) spdlog::debug(msg)
-#define CONFIG_LOG_INFO(msg)  spdlog::info(msg)
-#define CONFIG_LOG_WARN(msg)  spdlog::warn(msg)
-#define CONFIG_LOG_ERROR(msg) spdlog::error(msg)
-
-// ====================================================
-// Макросы для проверок и валидации
-// ====================================================
-
-// Проверка указателя с возвратом ошибки
-#define CONFIG_CHECK(ptr, msg) \
-    do { \
-        if (!(ptr)) { \
-            CONFIG_LOG_ERROR(msg); \
+        if ((str).empty()) { \
             return std::unexpected(msg); \
         } \
     } while(0)
-
-// Проверка условия с возвратом ошибки
-#define CONFIG_VALIDATE(cond, msg) \
-    do { \
-        if (!(cond)) { \
-            CONFIG_LOG_ERROR(msg); \
-            return std::unexpected(msg); \
-        } \
-    } while(0)
-
-// Проверка на null с возвратом альтернативы
-#define CONFIG_CHECK_OR(ptr, fallback) \
-    ((ptr) ? (ptr) : (fallback))
 
 // Проверка на пустую строку
 #define CONFIG_CHECK_EMPTY(str, msg) \
@@ -180,11 +134,27 @@
         } \
     } while(0)
 
-// ====================================================
-// Макросы для работы с YAML
-// ====================================================
+//==============================================================================
+// ЛОГИРОВАНИЕ (через spdlog)
+//==============================================================================
 
-// Безопасное получение поля YAML с проверкой
+#define CONFIG_INIT_LOGGER() \
+    do { \
+        auto console = spdlog::stdout_color_mt("config"); \
+        console->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); \
+        spdlog::set_default_logger(console); \
+    } while(0)
+
+#define CONFIG_LOG_DEBUG(msg) spdlog::debug(msg)
+#define CONFIG_LOG_INFO(msg)  spdlog::info(msg)
+#define CONFIG_LOG_WARN(msg)  spdlog::warn(msg)
+#define CONFIG_LOG_ERROR(msg) spdlog::error(msg)
+
+//==============================================================================
+// YAML ВСПОМОГАТЕЛЬНЫЕ МАКРОСЫ
+//==============================================================================
+
+// Безопасное получение поля YAML
 #define CONFIG_GET_YAML(node, field, msg) \
     [&]() -> std::expected<YAML::Node, std::string> { \
         if (!node[field]) { \
@@ -194,15 +164,11 @@
         return node[field]; \
     }()
 
-// Получение поля с дефолтным значением
-#define CONFIG_GET_YAML_OR(node, field, def) \
-    (node[field] ? node[field] : def)
+//==============================================================================
+// БЕЗОПАСНОСТЬ ПАМЯТИ
+//==============================================================================
 
-// ====================================================
-// Макросы для работы с памятью
-// ====================================================
-
-// Затирание паролей в памяти (безопасность)
+// Затирание паролей в памяти
 #define CONFIG_SECURE_ZERO(ptr, size) \
     do { \
         if (ptr) { \
@@ -222,65 +188,28 @@
         } \
     } while(0)
 
-// ====================================================
-// Макросы для версионирования и совместимости
-// ====================================================
-
-#ifdef __GNUC__
-#define CONFIG_DEPRECATED __attribute__((deprecated))
-#elif defined(_MSC_VER)
-#define CONFIG_DEPRECATED __declspec(deprecated)
-#else
-#define CONFIG_DEPRECATED
-#endif
-
-#ifdef _WIN32
-#ifdef CONFIG_BUILD_DLL
-#define CONFIG_API __declspec(dllexport)
-#else
-#define CONFIG_API __declspec(dllimport)
-#endif
-#else
-#define CONFIG_API __attribute__((visibility("default")))
-#endif
-
-// ====================================================
-// Макросы для отладки
-// ====================================================
-
-#define CONFIG_DUMP(var) \
-    spdlog::info("{} = {} [{}:{}]", #var, (var), __FILE__, __LINE__)
+//==============================================================================
+// ОТЛАДКА
+//==============================================================================
 
 #ifdef _DEBUG
 #define CONFIG_ASSERT(cond) \
-        do { \
-            if (!(cond)) { \
-                CONFIG_LOG_ERROR("Assertion failed: " #cond); \
-                std::abort(); \
-            } \
-        } while(0)
+    do { \
+        if (!(cond)) { \
+            CONFIG_LOG_ERROR("Assertion failed: " #cond); \
+            std::abort(); \
+        } \
+    } while(0)
 #else
 #define CONFIG_ASSERT(cond) ((void)0)
 #endif
 
-// ====================================================
-// Макросы для производительности
-// ====================================================
+//==============================================================================
+// ВЕРСИОНИРОВАНИЕ
+//==============================================================================
 
-#ifdef __GNUC__
-#define CONFIG_LIKELY(expr)   __builtin_expect(!!(expr), 1)
-#define CONFIG_UNLIKELY(expr) __builtin_expect(!!(expr), 0)
-#else
-#define CONFIG_LIKELY(expr)   (expr)
-#define CONFIG_UNLIKELY(expr) (expr)
-#endif
-
-#define CONFIG_NON_COPYABLE(ClassName) \
-    ClassName(const ClassName&) = delete; \
-    ClassName& operator=(const ClassName&) = delete
-
-#define CONFIG_NON_MOVABLE(ClassName) \
-    ClassName(ClassName&&) = delete; \
-    ClassName& operator=(ClassName&&) = delete
+#define CONFIG_API_VERSION_MAJOR 1
+#define CONFIG_API_VERSION_MINOR 0
+#define CONFIG_API_VERSION_PATCH 0
 
 static_assert(CONFIG_API_VERSION_MAJOR == 1, "Macros version mismatch");

@@ -25,6 +25,8 @@ namespace bigiate::db {
         operator PGconn* () const { return m_conn; }
         bool isValid() const { return m_conn != nullptr; }
 
+
+
     private:
         DBConnectionPool* m_pool = nullptr;
         PGconn* m_conn = nullptr;
@@ -50,6 +52,7 @@ namespace bigiate::db {
             const std::string& query,
             int nParams,
             const char* const* params);
+
 
     private:
         std::shared_ptr<DBConnectionPool> m_pool;

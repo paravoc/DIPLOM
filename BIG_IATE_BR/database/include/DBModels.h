@@ -135,6 +135,7 @@ namespace bigiate::db {
         bool verificationRequired = false;
         std::string verificationMethod;
         bool isForced = false;
+        float bestMatchSimilarity = 0.0f;  
     };
 
     // Результат поиска по эмбеддингу
